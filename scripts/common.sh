@@ -83,23 +83,29 @@ skip_if_below() {
 # ---------------------------------------------------------------------------
 # Platform detection
 # ---------------------------------------------------------------------------
-CURRENT_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
-CURRENT_ARCH="$(uname -m)"
+if [[ -n "${HELM_PLATFORM:-}" ]]; then
+    CURRENT_OS="${HELM_PLATFORM%%-*}"
+    GOARCH="${HELM_PLATFORM#*-}"
+    PLATFORM="$HELM_PLATFORM"
+else
+    CURRENT_OS="$(uname -s | tr '[:upper:]' '[:lower:]')"
+    CURRENT_ARCH="$(uname -m)"
 
-case "$CURRENT_OS" in
-    mingw*|msys*|cygwin*) CURRENT_OS="windows" ;;
-esac
+    case "$CURRENT_OS" in
+        mingw*|msys*|cygwin*) CURRENT_OS="windows" ;;
+    esac
 
-case "$CURRENT_ARCH" in
-    x86_64)  GOARCH="amd64" ;;
-    aarch64) GOARCH="arm64" ;;
-    arm64)   GOARCH="arm64" ;;
-    ppc64le) GOARCH="ppc64le" ;;
-    s390x)   GOARCH="s390x" ;;
-    *)       GOARCH="$CURRENT_ARCH" ;;
-esac
+    case "$CURRENT_ARCH" in
+        x86_64)  GOARCH="amd64" ;;
+        aarch64) GOARCH="arm64" ;;
+        arm64)   GOARCH="arm64" ;;
+        ppc64le) GOARCH="ppc64le" ;;
+        s390x)   GOARCH="s390x" ;;
+        *)       GOARCH="$CURRENT_ARCH" ;;
+    esac
 
-PLATFORM="${CURRENT_OS}-${GOARCH}"
+    PLATFORM="${CURRENT_OS}-${GOARCH}"
+fi
 
 # ---------------------------------------------------------------------------
 # Binary path

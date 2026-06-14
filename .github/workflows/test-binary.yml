@@ -59,12 +59,14 @@ jobs:
           - os: macos-latest
             platform: darwin-arm64
           - os: windows-latest
-            platform: win-amd64
+            platform: windows-amd64
           - os: windows-11-arm
-            platform: win-arm64
+            platform: windows-arm64
 
     runs-on: ${{ matrix.os }}
     name: ${{ matrix.platform }}
+    env:
+      HELM_PLATFORM: ${{ matrix.platform }}
 
     steps:
       - name: Checkout

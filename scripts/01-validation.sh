@@ -125,6 +125,24 @@ else
 fi
 
 # ---------------------------------------------------------------------------
+# Permissions check
+# ---------------------------------------------------------------------------
+if [[ "$CURRENT_OS" == "windows" ]]; then
+    if [[ -f "$HELM_BIN" ]]; then
+        pass "Check permissions (windows — no executable bit)"
+    else
+        fail "Check permissions" "binary not found: $HELM_BIN"
+    fi
+else
+    if [[ -x "$HELM_BIN" ]]; then
+        perms="$(stat -c "%a" "$HELM_BIN" 2>/dev/null || stat -f "%Lp" "$HELM_BIN" 2>/dev/null)"
+        pass "Check permissions (${perms})"
+    else
+        fail "Check permissions" "binary is not executable: $HELM_BIN"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
 # Binary size check (expect 40-80 MB)
 # ---------------------------------------------------------------------------
 if [[ -f "$HELM_BIN" ]]; then

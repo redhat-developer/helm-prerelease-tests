@@ -4,26 +4,35 @@ on:
   workflow_dispatch:
     inputs:
       image_sha:
-        description: 'Konflux image to test (full quay.io reference with @sha256:...)'
-        required: true
-        default: 'quay.io/redhat-user-workloads/helm-cli-tenant/helm-cli@sha256:edd3404c4d1e88152a4c91688f2073647403383aee1609f355760ebc4ae1b6b7'
+        description: 'Konflux image to test (overrides image.env)'
+        required: false
   push:
     branches: [main]
   pull_request:
     branches: [main]
-
-env:
-  BINARY_IMAGE: ${{ github.event.inputs.image_sha || 'quay.io/redhat-user-workloads/helm-cli-tenant/helm-cli@sha256:edd3404c4d1e88152a4c91688f2073647403383aee1609f355760ebc4ae1b6b7' }}
 
 jobs:
   extract:
     name: Extract binaries
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve image reference
+        id: image
+        run: |
+          if [[ -n "${{ github.event.inputs.image_sha }}" ]]; then
+            echo "ref=${{ github.event.inputs.image_sha }}" >> "$GITHUB_OUTPUT"
+          else
+            source image.env
+            echo "ref=${BINARY_IMAGE}" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Pull image and extract all binaries
         run: |
           mkdir -p binaries
-          docker create --name extract --platform linux/amd64 "$BINARY_IMAGE"
+          docker create --name extract --platform linux/amd64 "${{ steps.image.outputs.ref }}"
           docker cp extract:/releases/. binaries/
           docker rm extract
           ls -lh binaries/

@@ -1,0 +1,135 @@
+name: Helm Binary Tests
+
+on:
+  workflow_dispatch:
+    inputs:
+      image_sha:
+        description: 'Konflux image to test (full quay.io reference with @sha256:...)'
+        required: true
+        default: 'quay.io/redhat-user-workloads/helm-cli-tenant/helm-cli@sha256:edd3404c4d1e88152a4c91688f2073647403383aee1609f355760ebc4ae1b6b7'
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+env:
+  BINARY_IMAGE: ${{ github.event.inputs.image_sha || 'quay.io/redhat-user-workloads/helm-cli-tenant/helm-cli@sha256:edd3404c4d1e88152a4c91688f2073647403383aee1609f355760ebc4ae1b6b7' }}
+
+jobs:
+  extract:
+    name: Extract binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pull image and extract all binaries
+        run: |
+          mkdir -p binaries
+          docker create --name extract --platform linux/amd64 "$BINARY_IMAGE"
+          docker cp extract:/releases/. binaries/
+          docker rm extract
+          ls -lh binaries/
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v4
+        with:
+          name: helm-binaries
+          path: binaries/
+          retention-days: 1
+
+  test:
+    needs: extract
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            platform: linux-amd64
+          - os: ubuntu-24.04-arm
+            platform: linux-arm64
+          - os: macos-13
+            platform: darwin-amd64
+          - os: macos-latest
+            platform: darwin-arm64
+          - os: windows-latest
+            platform: win-amd64
+          - os: windows-11-arm
+            platform: win-arm64
+
+    runs-on: ${{ matrix.os }}
+    name: ${{ matrix.platform }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download binaries
+        uses: actions/download-artifact@v4
+        with:
+          name: helm-binaries
+          path: helm-binary-test/
+
+      - name: Remove quarantine (macOS)
+        if: runner.os == 'macOS'
+        run: xattr -dr com.apple.quarantine helm-binary-test/ 2>/dev/null || true
+
+      - name: Make binaries executable
+        if: runner.os != 'Windows'
+        run: chmod +x helm-binary-test/helm-*
+
+      - name: Create kind cluster
+        if: runner.os == 'Linux'
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: helm-test
+
+      - name: Run 01-validation
+        shell: bash
+        working-directory: helm-binary-test
+        run: bash ../scripts/01-validation.sh
+
+      - name: Run 02-smoke
+        shell: bash
+        working-directory: helm-binary-test
+        run: bash ../scripts/02-smoke.sh
+
+      - name: Run 03-dependencies
+        shell: bash
+        working-directory: helm-binary-test
+        run: bash ../scripts/03-dependencies.sh
+
+      - name: Run 04-functionality-offline
+        shell: bash
+        working-directory: helm-binary-test
+        run: bash ../scripts/04-functionality-offline.sh
+
+      - name: Run 05-functionality-cluster
+        shell: bash
+        working-directory: helm-binary-test
+        run: bash ../scripts/05-functionality-cluster.sh
+
+      - name: Run 06-oci
+        shell: bash
+        working-directory: helm-binary-test
+        run: bash ../scripts/06-oci.sh
+
+      - name: Run 07-v4-features-offline
+        shell: bash
+        working-directory: helm-binary-test
+        run: bash ../scripts/07-v4-features-offline.sh
+
+      - name: Run 08-v4-features-cluster
+        shell: bash
+        working-directory: helm-binary-test
+        run: bash ../scripts/08-v4-features-cluster.sh
+
+      - name: Run 09-distribution
+        shell: bash
+        working-directory: helm-binary-test
+        run: bash ../scripts/09-distribution.sh
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.platform }}
+          path: helm-binary-test/
+          retention-days: 30

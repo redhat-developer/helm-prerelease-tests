@@ -90,55 +90,59 @@ jobs:
         with:
           cluster_name: helm-test
 
+      - name: Create results directory
+        shell: bash
+        run: mkdir -p test-results
+
       - name: Run 01-validation
         shell: bash
         working-directory: helm-binary-test
-        run: bash ../scripts/01-validation.sh
+        run: bash ../scripts/01-validation.sh 2>&1 | tee ../test-results/01-validation.log
 
       - name: Run 02-smoke
         shell: bash
         working-directory: helm-binary-test
-        run: bash ../scripts/02-smoke.sh
+        run: bash ../scripts/02-smoke.sh 2>&1 | tee ../test-results/02-smoke.log
 
       - name: Run 03-dependencies
         shell: bash
         working-directory: helm-binary-test
-        run: bash ../scripts/03-dependencies.sh
+        run: bash ../scripts/03-dependencies.sh 2>&1 | tee ../test-results/03-dependencies.log
 
       - name: Run 04-functionality-offline
         shell: bash
         working-directory: helm-binary-test
-        run: bash ../scripts/04-functionality-offline.sh
+        run: bash ../scripts/04-functionality-offline.sh 2>&1 | tee ../test-results/04-functionality-offline.log
 
       - name: Run 05-functionality-cluster
         shell: bash
         working-directory: helm-binary-test
-        run: bash ../scripts/05-functionality-cluster.sh
+        run: bash ../scripts/05-functionality-cluster.sh 2>&1 | tee ../test-results/05-functionality-cluster.log
 
       - name: Run 06-oci
         shell: bash
         working-directory: helm-binary-test
-        run: bash ../scripts/06-oci.sh
+        run: bash ../scripts/06-oci.sh 2>&1 | tee ../test-results/06-oci.log
 
       - name: Run 07-v4-features-offline
         shell: bash
         working-directory: helm-binary-test
-        run: bash ../scripts/07-v4-features-offline.sh
+        run: bash ../scripts/07-v4-features-offline.sh 2>&1 | tee ../test-results/07-v4-features-offline.log
 
       - name: Run 08-v4-features-cluster
         shell: bash
         working-directory: helm-binary-test
-        run: bash ../scripts/08-v4-features-cluster.sh
+        run: bash ../scripts/08-v4-features-cluster.sh 2>&1 | tee ../test-results/08-v4-features-cluster.log
 
       - name: Run 09-distribution
         shell: bash
         working-directory: helm-binary-test
-        run: bash ../scripts/09-distribution.sh
+        run: bash ../scripts/09-distribution.sh 2>&1 | tee ../test-results/09-distribution.log
 
       - name: Upload test results
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-results-${{ matrix.platform }}
-          path: helm-binary-test/
+          path: test-results/
           retention-days: 30

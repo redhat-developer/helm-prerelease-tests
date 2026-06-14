@@ -2,7 +2,7 @@
 # Shared library for helm binary prerelease tests.
 # Sourced by each test script — not executed directly.
 
-set -euo pipefail
+set -uo pipefail
 
 # ---------------------------------------------------------------------------
 # Test counters

@@ -12,7 +12,7 @@ echo ""
 # 1. Multi-document values
 # ---------------------------------------------------------------------------
 rm -rf v4-values-test
-"$HELM_BIN" create v4-values-test &>/dev/null
+run_cmd "$HELM_BIN" create v4-values-test
 cat > values-base.yaml << 'VALEOF'
 replicaCount: 1
 image:
@@ -35,7 +35,7 @@ rm -rf v4-values-test
 # 2. JSON arguments (--set-json)
 # ---------------------------------------------------------------------------
 rm -rf v4-json-test
-"$HELM_BIN" create v4-json-test &>/dev/null
+run_cmd "$HELM_BIN" create v4-json-test
 template_output="$("$HELM_BIN" template v4-json-test v4-json-test --set-json 'replicaCount=3' 2>&1)" || true
 if echo "$template_output" | grep -q "replicas: 3"; then
     pass "JSON arguments (--set-json)"
@@ -48,7 +48,7 @@ rm -rf v4-json-test
 # 3. Post-renderers as plugins
 # ---------------------------------------------------------------------------
 rm -rf v4-pr-test
-"$HELM_BIN" create v4-pr-test &>/dev/null
+run_cmd "$HELM_BIN" create v4-pr-test
 pr_output="$("$HELM_BIN" template v4-pr-test v4-pr-test --post-renderer /usr/bin/cat 2>&1)" || true
 if echo "$pr_output" | grep -qi "not found\|invalid argument"; then
     pass "Post-renderers as plugins (rejects executable path)"
@@ -91,20 +91,20 @@ fi
 # ---------------------------------------------------------------------------
 # 7. Repo list --no-headers
 # ---------------------------------------------------------------------------
-"$HELM_BIN" repo add test-nh https://charts.helm.sh/stable &>/dev/null || true
+run_cmd "$HELM_BIN" repo add test-nh https://charts.helm.sh/stable || true
 noheader_output="$("$HELM_BIN" repo list --no-headers 2>&1)" || true
 if echo "$noheader_output" | grep -q "test-nh" && ! echo "$noheader_output" | grep -qi "^NAME"; then
     pass "Repo list --no-headers"
 else
     fail "Repo list --no-headers" "header line present or repo missing"
 fi
-"$HELM_BIN" repo remove test-nh &>/dev/null || true
+run_cmd "$HELM_BIN" repo remove test-nh || true
 
 # ---------------------------------------------------------------------------
 # 8. --skip-schema-validation
 # ---------------------------------------------------------------------------
 rm -rf v4-schema-test
-"$HELM_BIN" create v4-schema-test &>/dev/null
+run_cmd "$HELM_BIN" create v4-schema-test
 cat > v4-schema-test/values.schema.json << 'SCHEMAEOF'
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
@@ -148,7 +148,7 @@ done
 # 14-15. Deprecated template flags
 # ---------------------------------------------------------------------------
 rm -rf v4-dep-flag-test
-"$HELM_BIN" create v4-dep-flag-test &>/dev/null
+run_cmd "$HELM_BIN" create v4-dep-flag-test
 
 for flag in "--hide-notes" "--render-subchart-notes"; do
     template_out="$("$HELM_BIN" template v4-dep-flag-test v4-dep-flag-test $flag 2>&1)" || true
@@ -175,7 +175,7 @@ rm -rf v4-dep-flag-test
 # 16. mustToYaml / mustToJson template functions
 # ---------------------------------------------------------------------------
 rm -rf v4-mustfunc-test
-"$HELM_BIN" create v4-mustfunc-test &>/dev/null
+run_cmd "$HELM_BIN" create v4-mustfunc-test
 cat > v4-mustfunc-test/templates/test-mustfunc.yaml << 'TMPLEOF'
 apiVersion: v1
 kind: ConfigMap
@@ -204,7 +204,7 @@ rm -rf v4-mustfunc-test
 # 17. Lint CRD directory
 # ---------------------------------------------------------------------------
 rm -rf v4-crd-test
-"$HELM_BIN" create v4-crd-test &>/dev/null
+run_cmd "$HELM_BIN" create v4-crd-test
 mkdir -p v4-crd-test/crds
 cat > v4-crd-test/crds/test-crd.yaml << 'CRDEOF'
 apiVersion: apiextensions.k8s.io/v1
@@ -237,7 +237,7 @@ rm -rf v4-crd-test
 # 18. Lint .yml files
 # ---------------------------------------------------------------------------
 rm -rf v4-yml-test
-"$HELM_BIN" create v4-yml-test &>/dev/null
+run_cmd "$HELM_BIN" create v4-yml-test
 cat > v4-yml-test/templates/bad.yml << 'YMLEOF'
 apiVersion: v1
 kind: ConfigMap
@@ -269,7 +269,7 @@ fi
 # ---------------------------------------------------------------------------
 if skip_if_below "mustToToml function" "4.2.0"; then
     rm -rf v4-toml-test
-    "$HELM_BIN" create v4-toml-test &>/dev/null
+    run_cmd "$HELM_BIN" create v4-toml-test
     cat > v4-toml-test/templates/test-toml.yaml << 'TMPLEOF'
 apiVersion: v1
 kind: ConfigMap
@@ -299,7 +299,7 @@ fi
 # 21. JSON Schema 2020 support
 # ---------------------------------------------------------------------------
 rm -rf v4-schema2020-test
-"$HELM_BIN" create v4-schema2020-test &>/dev/null
+run_cmd "$HELM_BIN" create v4-schema2020-test
 cat > v4-schema2020-test/values.schema.json << 'SCHEMAEOF'
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",

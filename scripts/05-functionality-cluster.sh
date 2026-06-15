@@ -21,7 +21,7 @@ CHART_NAME="cluster-test-chart"
 # Setup: create a local chart for testing
 # ---------------------------------------------------------------------------
 rm -rf "$CHART_NAME"
-"$HELM_BIN" create "$CHART_NAME" &>/dev/null
+run_cmd "$HELM_BIN" create "$CHART_NAME"
 
 # ---------------------------------------------------------------------------
 # Install chart

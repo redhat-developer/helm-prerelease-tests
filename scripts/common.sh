@@ -5,6 +5,27 @@
 set -uo pipefail
 
 # ---------------------------------------------------------------------------
+# Verbose mode — set VERBOSE=1 to see all command output
+# ---------------------------------------------------------------------------
+VERBOSE="${VERBOSE:-0}"
+
+run_cmd() {
+    if [[ "$VERBOSE" == "1" ]]; then
+        echo "  \$ $*"
+        "$@" 2>&1 | sed 's/^/  | /'
+        return "${PIPESTATUS[0]}"
+    else
+        "$@" &>/dev/null
+    fi
+}
+
+log_verbose() {
+    if [[ "$VERBOSE" == "1" ]]; then
+        echo "  $*"
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Test counters
 # ---------------------------------------------------------------------------
 PASS_COUNT=0
@@ -192,4 +213,4 @@ has_cluster() {
 # ---------------------------------------------------------------------------
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
-echo "--- Platform: ${PLATFORM} | Helm: ${HELM_VERSION} | Binary: ${HELM_BIN} ---"
+echo "--- Platform: ${PLATFORM} | Helm: ${HELM_VERSION} | Binary: ${HELM_BIN} | Verbose: ${VERBOSE} ---"

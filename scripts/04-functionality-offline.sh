@@ -12,7 +12,7 @@ echo ""
 # Create chart
 # ---------------------------------------------------------------------------
 rm -rf test-chart
-if "$HELM_BIN" create test-chart &>/dev/null && [[ -f "test-chart/Chart.yaml" ]]; then
+if run_cmd "$HELM_BIN" create test-chart && [[ -f "test-chart/Chart.yaml" ]]; then
     pass "Create chart"
 else
     fail "Create chart" "helm create did not produce Chart.yaml"
@@ -42,7 +42,7 @@ fi
 # Package chart
 # ---------------------------------------------------------------------------
 rm -f test-chart-*.tgz
-if "$HELM_BIN" package test-chart &>/dev/null; then
+if run_cmd "$HELM_BIN" package test-chart; then
     if ls test-chart-*.tgz &>/dev/null; then
         pass "Package chart"
     else
@@ -65,7 +65,7 @@ fi
 # ---------------------------------------------------------------------------
 # Repo add / list / search / remove
 # ---------------------------------------------------------------------------
-"$HELM_BIN" repo add stable https://charts.helm.sh/stable &>/dev/null || true
+run_cmd "$HELM_BIN" repo add stable https://charts.helm.sh/stable || true
 repo_list="$("$HELM_BIN" repo list 2>&1)" || true
 if echo "$repo_list" | grep -q "stable"; then
     pass "Repo add and list"
@@ -80,7 +80,7 @@ else
     fail "Repo search" "mysql not found in search results"
 fi
 
-if "$HELM_BIN" repo remove stable &>/dev/null; then
+if run_cmd "$HELM_BIN" repo remove stable; then
     pass "Repo remove"
 else
     fail "Repo remove" "helm repo remove failed"
@@ -89,15 +89,15 @@ fi
 # ---------------------------------------------------------------------------
 # Pull chart
 # ---------------------------------------------------------------------------
-"$HELM_BIN" repo add stable https://charts.helm.sh/stable &>/dev/null || true
+run_cmd "$HELM_BIN" repo add stable https://charts.helm.sh/stable || true
 rm -f mysql-1.6.9.tgz
-if "$HELM_BIN" pull stable/mysql --version 1.6.9 &>/dev/null && [[ -f "mysql-1.6.9.tgz" ]]; then
+if run_cmd "$HELM_BIN" pull stable/mysql --version 1.6.9 && [[ -f "mysql-1.6.9.tgz" ]]; then
     pass "Pull chart"
 else
     fail "Pull chart" "mysql-1.6.9.tgz not downloaded"
 fi
 rm -f mysql-1.6.9.tgz
-"$HELM_BIN" repo remove stable &>/dev/null || true
+run_cmd "$HELM_BIN" repo remove stable || true
 
 # ---------------------------------------------------------------------------
 # Plugin list

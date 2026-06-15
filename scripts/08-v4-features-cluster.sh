@@ -15,7 +15,7 @@ fi
 
 CHART_NAME="v4-cluster-test"
 rm -rf "$CHART_NAME"
-"$HELM_BIN" create "$CHART_NAME" &>/dev/null
+run_cmd "$HELM_BIN" create "$CHART_NAME"
 
 # ---------------------------------------------------------------------------
 # 1. Server-side apply default
@@ -27,7 +27,7 @@ if echo "$ssa_output" | grep -qi "server-side apply"; then
 else
     fail "Server-side apply default" "no SSA debug output found"
 fi
-"$HELM_BIN" uninstall "$RELEASE_SSA" &>/dev/null || true
+run_cmd "$HELM_BIN" uninstall "$RELEASE_SSA" || true
 
 # ---------------------------------------------------------------------------
 # 2. Server-side apply override
@@ -39,7 +39,7 @@ if echo "$csa_output" | grep -qi "client-side apply"; then
 else
     fail "Server-side apply override" "no client-side apply debug output found"
 fi
-"$HELM_BIN" uninstall "$RELEASE_CSA" &>/dev/null || true
+run_cmd "$HELM_BIN" uninstall "$RELEASE_CSA" || true
 
 # ---------------------------------------------------------------------------
 # 3. kstatus watcher
@@ -51,26 +51,26 @@ if echo "$ks_output" | grep -qi "STATUS: deployed"; then
 else
     fail "kstatus watcher" "install with --wait did not complete"
 fi
-"$HELM_BIN" uninstall "$RELEASE_KS" &>/dev/null || true
+run_cmd "$HELM_BIN" uninstall "$RELEASE_KS" || true
 
 # ---------------------------------------------------------------------------
 # 4. --rollback-on-failure
 # ---------------------------------------------------------------------------
 RELEASE_RBF="rbf-test-$$"
-"$HELM_BIN" install "$RELEASE_RBF" "$CHART_NAME" --wait --timeout 5m &>/dev/null || true
+run_cmd "$HELM_BIN" install "$RELEASE_RBF" "$CHART_NAME" --wait --timeout 5m || true
 rbf_output="$("$HELM_BIN" upgrade "$RELEASE_RBF" "$CHART_NAME" --set image.repository=invalid-image-xxx --rollback-on-failure --wait --timeout 2m 2>&1)" || true
 if echo "$rbf_output" | grep -qi "rolled back\|rollback"; then
     pass "--rollback-on-failure"
 else
     fail "--rollback-on-failure" "$rbf_output"
 fi
-"$HELM_BIN" uninstall "$RELEASE_RBF" &>/dev/null || true
+run_cmd "$HELM_BIN" uninstall "$RELEASE_RBF" || true
 
 # ---------------------------------------------------------------------------
 # 5. Deprecated --atomic
 # ---------------------------------------------------------------------------
 RELEASE_ATOMIC="atomic-test-$$"
-"$HELM_BIN" install "$RELEASE_ATOMIC" "$CHART_NAME" --wait --timeout 5m &>/dev/null || true
+run_cmd "$HELM_BIN" install "$RELEASE_ATOMIC" "$CHART_NAME" --wait --timeout 5m || true
 atomic_output="$("$HELM_BIN" upgrade "$RELEASE_ATOMIC" "$CHART_NAME" --set image.repository=invalid-image-xxx --atomic --timeout 2m 2>&1)" || true
 if echo "$atomic_output" | grep -qi "deprecated.*rollback-on-failure\|rollback-on-failure.*deprecated"; then
     pass "Deprecated --atomic (warning + rollback)"
@@ -79,26 +79,26 @@ elif echo "$atomic_output" | grep -qi "deprecated"; then
 else
     fail "Deprecated --atomic" "$atomic_output"
 fi
-"$HELM_BIN" uninstall "$RELEASE_ATOMIC" &>/dev/null || true
+run_cmd "$HELM_BIN" uninstall "$RELEASE_ATOMIC" || true
 
 # ---------------------------------------------------------------------------
 # 6. --force-replace (incompatible with SSA)
 # ---------------------------------------------------------------------------
 RELEASE_FR="fr-test-$$"
-"$HELM_BIN" install "$RELEASE_FR" "$CHART_NAME" --server-side=false --wait --timeout 5m &>/dev/null || true
+run_cmd "$HELM_BIN" install "$RELEASE_FR" "$CHART_NAME" --server-side=false --wait --timeout 5m || true
 fr_output="$("$HELM_BIN" upgrade "$RELEASE_FR" "$CHART_NAME" --set replicaCount=2 --force-replace --wait --timeout 5m 2>&1)" || true
 if echo "$fr_output" | grep -qi "STATUS: deployed\|REVISION:"; then
     pass "--force-replace (with --server-side=false)"
 else
     fail "--force-replace" "$fr_output"
 fi
-"$HELM_BIN" uninstall "$RELEASE_FR" &>/dev/null || true
+run_cmd "$HELM_BIN" uninstall "$RELEASE_FR" || true
 
 # ---------------------------------------------------------------------------
 # 7. Deprecated --force
 # ---------------------------------------------------------------------------
 RELEASE_FORCE="force-test-$$"
-"$HELM_BIN" install "$RELEASE_FORCE" "$CHART_NAME" --server-side=false --wait --timeout 5m &>/dev/null || true
+run_cmd "$HELM_BIN" install "$RELEASE_FORCE" "$CHART_NAME" --server-side=false --wait --timeout 5m || true
 force_output="$("$HELM_BIN" upgrade "$RELEASE_FORCE" "$CHART_NAME" --set replicaCount=2 --force --wait --timeout 5m 2>&1)" || true
 if echo "$force_output" | grep -qi "deprecated.*force-replace\|force-replace.*deprecated"; then
     pass "Deprecated --force (warning + force-replace)"
@@ -107,7 +107,7 @@ elif echo "$force_output" | grep -qi "deprecated"; then
 else
     fail "Deprecated --force" "$force_output"
 fi
-"$HELM_BIN" uninstall "$RELEASE_FORCE" &>/dev/null || true
+run_cmd "$HELM_BIN" uninstall "$RELEASE_FORCE" || true
 
 # ---------------------------------------------------------------------------
 # 8. OCI install by digest (cluster required)
@@ -115,8 +115,8 @@ fi
 OCI_CHART="v4-digest-test"
 OCI_REPO="ttl.sh/helm-v4-digest-$$"
 rm -rf "$OCI_CHART" "${OCI_CHART}-0.1.0.tgz"
-"$HELM_BIN" create "$OCI_CHART" &>/dev/null
-"$HELM_BIN" package "$OCI_CHART" &>/dev/null
+run_cmd "$HELM_BIN" create "$OCI_CHART"
+run_cmd "$HELM_BIN" package "$OCI_CHART"
 push_output="$("$HELM_BIN" push "${OCI_CHART}-0.1.0.tgz" "oci://${OCI_REPO}" 2>&1)" || true
 OCI_DIGEST="$(echo "$push_output" | grep "Digest:" | awk '{print $2}')"
 
@@ -128,7 +128,7 @@ if [[ -n "$OCI_DIGEST" ]]; then
     else
         fail "OCI install by digest" "$digest_install"
     fi
-    "$HELM_BIN" uninstall "$RELEASE_DIGEST" &>/dev/null || true
+    run_cmd "$HELM_BIN" uninstall "$RELEASE_DIGEST" || true
 else
     fail "OCI install by digest" "push did not return digest"
 fi

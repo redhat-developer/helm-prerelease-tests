@@ -13,8 +13,8 @@ CHART_NAME="oci-test-chart"
 OCI_REPO="ttl.sh/helm-prerelease-$$"
 
 rm -rf "$CHART_NAME" "${CHART_NAME}-0.1.0.tgz"
-"$HELM_BIN" create "$CHART_NAME" &>/dev/null
-"$HELM_BIN" package "$CHART_NAME" &>/dev/null
+run_cmd "$HELM_BIN" create "$CHART_NAME"
+run_cmd "$HELM_BIN" package "$CHART_NAME"
 
 # ---------------------------------------------------------------------------
 # Push chart to OCI
@@ -41,7 +41,7 @@ if has_cluster; then
     else
         fail "Install from OCI" "$install_output"
     fi
-    "$HELM_BIN" uninstall "$RELEASE_OCI" &>/dev/null || true
+    run_cmd "$HELM_BIN" uninstall "$RELEASE_OCI" || true
 else
     skip "Install from OCI" "no cluster available"
 fi
@@ -57,7 +57,7 @@ if has_cluster; then
     else
         fail "Install from OCI by digest" "$install_output"
     fi
-    "$HELM_BIN" uninstall "$RELEASE_DIGEST" &>/dev/null || true
+    run_cmd "$HELM_BIN" uninstall "$RELEASE_DIGEST" || true
 else
     skip "Install from OCI by digest" "no cluster available"
 fi

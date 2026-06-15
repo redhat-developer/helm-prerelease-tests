@@ -49,6 +49,9 @@ fi
 # .zip extraction — windows archives
 # ---------------------------------------------------------------------------
 zip_found=false
+if ! command -v unzip &>/dev/null; then
+    skip "Extract .zip archives" "unzip not installed"
+else
 for archive in helm-windows-*.exe.zip; do
     [[ -f "$archive" ]] || continue
     zip_found=true
@@ -84,6 +87,7 @@ if ! $zip_found; then
     else
         skip "Extract .zip archives" "no .zip archives found (expected on non-windows)"
     fi
+fi
 fi
 
 summary

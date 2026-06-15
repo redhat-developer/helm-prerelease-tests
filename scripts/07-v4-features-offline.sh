@@ -23,6 +23,7 @@ image:
   tag: "override"
 VALEOF
 template_output="$("$HELM_BIN" template v4-values-test v4-values-test -f values-base.yaml -f values-override.yaml 2>&1)" || true
+log_captured "$HELM_BIN template v4-values-test v4-values-test -f values-base.yaml -f values-override.yaml" "$template_output"
 if echo "$template_output" | grep -q "override"; then
     pass "Multi-document values"
 else
@@ -37,6 +38,7 @@ rm -rf v4-values-test
 rm -rf v4-json-test
 run_cmd "$HELM_BIN" create v4-json-test
 template_output="$("$HELM_BIN" template v4-json-test v4-json-test --set-json 'replicaCount=3' 2>&1)" || true
+log_captured "$HELM_BIN template v4-json-test v4-json-test --set-json replicaCount=3" "$template_output"
 if echo "$template_output" | grep -q "replicas: 3"; then
     pass "JSON arguments (--set-json)"
 else
@@ -50,6 +52,7 @@ rm -rf v4-json-test
 rm -rf v4-pr-test
 run_cmd "$HELM_BIN" create v4-pr-test
 pr_output="$("$HELM_BIN" template v4-pr-test v4-pr-test --post-renderer /usr/bin/cat 2>&1)" || true
+log_captured "$HELM_BIN template v4-pr-test v4-pr-test --post-renderer /usr/bin/cat" "$pr_output"
 if echo "$pr_output" | grep -qi "not found\|invalid argument"; then
     pass "Post-renderers as plugins (rejects executable path)"
 else
@@ -61,6 +64,7 @@ rm -rf v4-pr-test
 # 4. Plugin system check
 # ---------------------------------------------------------------------------
 plugin_output="$("$HELM_BIN" plugin list 2>&1)" || true
+log_captured "$HELM_BIN plugin list" "$plugin_output"
 if echo "$plugin_output" | grep -qi "APIVERSION"; then
     pass "Plugin system check (apiVersion column)"
 else
@@ -71,7 +75,9 @@ fi
 # 5. Registry login domain-only
 # ---------------------------------------------------------------------------
 login_scheme="$("$HELM_BIN" registry login https://registry.example.com -u test -p test 2>&1)" || true
+log_captured "$HELM_BIN registry login https://registry.example.com -u test -p test" "$login_scheme"
 login_path="$("$HELM_BIN" registry login ghcr.io/myrepo -u test -p test 2>&1)" || true
+log_captured "$HELM_BIN registry login ghcr.io/myrepo -u test -p test" "$login_path"
 if echo "$login_scheme" | grep -qi "scheme\|invalid\|error" && echo "$login_path" | grep -qi "path\|invalid\|error"; then
     pass "Registry login domain-only (rejects scheme and path)"
 else
@@ -82,6 +88,7 @@ fi
 # 6. Version shows kube version
 # ---------------------------------------------------------------------------
 version_output="$("$HELM_BIN" version 2>&1)" || true
+log_captured "$HELM_BIN version" "$version_output"
 if echo "$version_output" | grep -qi "KubeClientVersion\|client-go"; then
     pass "Version shows kube version"
 else
@@ -93,6 +100,7 @@ fi
 # ---------------------------------------------------------------------------
 run_cmd "$HELM_BIN" repo add test-nh https://charts.helm.sh/stable || true
 noheader_output="$("$HELM_BIN" repo list --no-headers 2>&1)" || true
+log_captured "$HELM_BIN repo list --no-headers" "$noheader_output"
 if echo "$noheader_output" | grep -q "test-nh" && ! echo "$noheader_output" | grep -qi "^NAME"; then
     pass "Repo list --no-headers"
 else
@@ -116,7 +124,9 @@ cat > v4-schema-test/values.schema.json << 'SCHEMAEOF'
 }
 SCHEMAEOF
 lint_fail="$("$HELM_BIN" lint v4-schema-test 2>&1)" || true
+log_captured "$HELM_BIN lint v4-schema-test" "$lint_fail"
 lint_skip="$("$HELM_BIN" lint v4-schema-test --skip-schema-validation 2>&1)" || true
+log_captured "$HELM_BIN lint v4-schema-test --skip-schema-validation" "$lint_skip"
 if echo "$lint_fail" | grep -qi "requiredField\|schema" && echo "$lint_skip" | grep -q "0 chart(s) failed"; then
     pass "--skip-schema-validation"
 else
@@ -137,6 +147,7 @@ for flag_test in \
     cmd="${flag_test%%:*}"
     flag_name="${flag_test##*:}"
     output="$("$HELM_BIN" $cmd 2>&1)" || true
+    log_captured "$HELM_BIN $cmd" "$output"
     if echo "$output" | grep -qi "unknown flag"; then
         pass "Removed flag: ${flag_name}"
     else
@@ -152,6 +163,7 @@ run_cmd "$HELM_BIN" create v4-dep-flag-test
 
 for flag in "--hide-notes" "--render-subchart-notes"; do
     template_out="$("$HELM_BIN" template v4-dep-flag-test v4-dep-flag-test $flag 2>&1)" || true
+    log_captured "$HELM_BIN template v4-dep-flag-test v4-dep-flag-test $flag" "$template_out"
     if echo "$template_out" | grep -q "apiVersion:"; then
         pass "Deprecated flag: ${flag} (accepted silently)"
     else
@@ -162,6 +174,7 @@ done
 # Check if flags are hidden from help (v4.2.0+ only)
 if skip_if_below "Deprecated flags hidden from --help" "4.2.0"; then
     help_out="$("$HELM_BIN" template --help 2>&1)" || true
+    log_captured "$HELM_BIN template --help" "$help_out"
     if ! echo "$help_out" | grep -qE "hide-notes|render-subchart-notes"; then
         pass "Deprecated flags hidden from --help"
     else
@@ -193,6 +206,7 @@ testData:
   key2: value2
 VALEOF
 mustfunc_out="$("$HELM_BIN" template v4-mustfunc-test v4-mustfunc-test -f v4-mustfunc-test/test-values.yaml 2>&1)" || true
+log_captured "$HELM_BIN template v4-mustfunc-test v4-mustfunc-test -f v4-mustfunc-test/test-values.yaml" "$mustfunc_out"
 if echo "$mustfunc_out" | grep -q "key1: value1" && echo "$mustfunc_out" | grep -q '"key1"'; then
     pass "mustToYaml/mustToJson functions"
 else
@@ -226,6 +240,7 @@ spec:
           type: object
 CRDEOF
 crd_lint="$("$HELM_BIN" lint v4-crd-test 2>&1)" || true
+log_captured "$HELM_BIN lint v4-crd-test" "$crd_lint"
 if echo "$crd_lint" | grep -q "0 chart(s) failed"; then
     pass "Lint CRD directory"
 else
@@ -247,6 +262,7 @@ data:
   value: {{ .Values.nonexistent.deep.path }}
 YMLEOF
 yml_lint="$("$HELM_BIN" lint v4-yml-test 2>&1)" || true
+log_captured "$HELM_BIN lint v4-yml-test" "$yml_lint"
 if echo "$yml_lint" | grep -qi "error\|bad.yml"; then
     pass "Lint .yml files (lints same as .yaml)"
 else
@@ -258,6 +274,7 @@ rm -rf v4-yml-test
 # 19. Content-based caching
 # ---------------------------------------------------------------------------
 env_output="$("$HELM_BIN" env 2>&1)" || true
+log_captured "$HELM_BIN env" "$env_output"
 if echo "$env_output" | grep -qi "HELM_CONTENT_CACHE\|content"; then
     pass "Content-based caching (HELM_CONTENT_CACHE in env)"
 else
@@ -287,6 +304,7 @@ tomlData:
     port: 5432
 VALEOF
     toml_out="$("$HELM_BIN" template v4-toml-test v4-toml-test -f v4-toml-test/test-values.yaml 2>&1)" || true
+    log_captured "$HELM_BIN template v4-toml-test v4-toml-test -f v4-toml-test/test-values.yaml" "$toml_out"
     if echo "$toml_out" | grep -q "title"; then
         pass "mustToToml function"
     else
@@ -313,6 +331,7 @@ cat > v4-schema2020-test/values.schema.json << 'SCHEMAEOF'
 }
 SCHEMAEOF
 schema2020_lint="$("$HELM_BIN" lint v4-schema2020-test 2>&1)" || true
+log_captured "$HELM_BIN lint v4-schema2020-test" "$schema2020_lint"
 if echo "$schema2020_lint" | grep -q "0 chart(s) failed"; then
     pass "JSON Schema 2020 support"
 else

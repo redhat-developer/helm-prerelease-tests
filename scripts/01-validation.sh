@@ -68,6 +68,7 @@ fi
 # ---------------------------------------------------------------------------
 if command -v file &>/dev/null; then
     file_output="$(file "$HELM_BIN")"
+    log_captured "file $HELM_BIN" "$file_output"
     case "$CURRENT_OS" in
         linux)
             if echo "$file_output" | grep -q "ELF 64-bit"; then
@@ -100,6 +101,7 @@ fi
 # ---------------------------------------------------------------------------
 if command -v file &>/dev/null; then
     file_output="$(file "$HELM_BIN")"
+    log_captured "file $HELM_BIN" "$file_output"
     arch_ok=false
     case "$GOARCH" in
         amd64)

@@ -22,6 +22,7 @@ fi
 # Lint chart
 # ---------------------------------------------------------------------------
 lint_output="$("$HELM_BIN" lint test-chart 2>&1)" || true
+log_captured "$HELM_BIN lint test-chart" "$lint_output"
 if echo "$lint_output" | grep -q "1 chart(s) linted, 0 chart(s) failed"; then
     pass "Lint chart"
 else
@@ -32,6 +33,7 @@ fi
 # Template chart
 # ---------------------------------------------------------------------------
 template_output="$("$HELM_BIN" template test-chart test-chart 2>&1)" || true
+log_captured "$HELM_BIN template test-chart test-chart" "$template_output"
 if echo "$template_output" | grep -q "apiVersion:"; then
     pass "Template chart"
 else
@@ -56,6 +58,7 @@ fi
 # Show chart metadata
 # ---------------------------------------------------------------------------
 show_output="$("$HELM_BIN" show chart test-chart 2>&1)" || true
+log_captured "$HELM_BIN show chart test-chart" "$show_output"
 if echo "$show_output" | grep -q "name: test-chart"; then
     pass "Show chart metadata"
 else
@@ -67,6 +70,7 @@ fi
 # ---------------------------------------------------------------------------
 run_cmd "$HELM_BIN" repo add stable https://charts.helm.sh/stable || true
 repo_list="$("$HELM_BIN" repo list 2>&1)" || true
+log_captured "$HELM_BIN repo list" "$repo_list"
 if echo "$repo_list" | grep -q "stable"; then
     pass "Repo add and list"
 else
@@ -74,6 +78,7 @@ else
 fi
 
 search_output="$("$HELM_BIN" search repo stable/mysql --versions 2>&1)" || true
+log_captured "$HELM_BIN search repo stable/mysql --versions" "$search_output"
 if echo "$search_output" | grep -q "mysql"; then
     pass "Repo search"
 else
@@ -103,6 +108,7 @@ run_cmd "$HELM_BIN" repo remove stable || true
 # Plugin list
 # ---------------------------------------------------------------------------
 plugin_output="$("$HELM_BIN" plugin list 2>&1)" || true
+log_captured "$HELM_BIN plugin list" "$plugin_output"
 if echo "$plugin_output" | grep -qiE "NAME.*VERSION.*TYPE|APIVERSION"; then
     pass "Plugin list (v4 columns)"
 else

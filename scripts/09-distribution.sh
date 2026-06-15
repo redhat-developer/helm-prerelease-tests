@@ -24,6 +24,7 @@ for archive in helm-linux-*.tar.gz helm-darwin-*.tar.gz; do
         if [[ -f "${extract_dir}/${binary_name}" ]]; then
             if command -v file &>/dev/null; then
                 file_out="$(file "${extract_dir}/${binary_name}")"
+                log_captured "file ${extract_dir}/${binary_name}" "$file_out"
                 if echo "$file_out" | grep -qiE "ELF|Mach-O"; then
                     pass "Extract ${archive}"
                 else
@@ -64,6 +65,7 @@ for archive in helm-windows-*.exe.zip; do
         if [[ -f "${extract_dir}/${exe_name}" ]]; then
             if command -v file &>/dev/null; then
                 file_out="$(file "${extract_dir}/${exe_name}")"
+                log_captured "file ${extract_dir}/${exe_name}" "$file_out"
                 if echo "$file_out" | grep -qi "PE32+"; then
                     pass "Extract ${archive}"
                 else

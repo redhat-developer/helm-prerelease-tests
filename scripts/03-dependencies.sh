@@ -11,6 +11,7 @@ echo ""
 case "$CURRENT_OS" in
     linux)
         ldd_output="$(ldd "$HELM_BIN" 2>&1)" || true
+        log_captured "ldd $HELM_BIN" "$ldd_output"
         if echo "$ldd_output" | grep -qiE "not a dynamic executable|statically linked"; then
             pass "Static linking check (ldd)"
         else
@@ -19,6 +20,7 @@ case "$CURRENT_OS" in
         ;;
     darwin)
         otool_output="$(otool -L "$HELM_BIN" 2>&1)" || true
+        log_captured "otool -L $HELM_BIN" "$otool_output"
         lib_count="$(echo "$otool_output" | grep -c "\.dylib\|\.framework" || true)"
         non_system="$(echo "$otool_output" | grep -v "/usr/lib/\|/System/" | grep "\.dylib\|\.framework" || true)"
         if [[ -z "$non_system" ]]; then

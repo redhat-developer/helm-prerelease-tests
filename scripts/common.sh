@@ -26,6 +26,29 @@ log_verbose() {
 }
 
 # ---------------------------------------------------------------------------
+# Capture helper — like run_cmd but stores output in LAST_OUTPUT for checks.
+# Usage: run_capture "$HELM_BIN" install ... ; echo "$LAST_OUTPUT"
+# ---------------------------------------------------------------------------
+LAST_OUTPUT=""
+run_capture() {
+    log_verbose "\$ $*"
+    LAST_OUTPUT="$("$@" 2>&1)" || true
+    if [[ "$VERBOSE" == "1" ]] && [[ -n "$LAST_OUTPUT" ]]; then
+        echo "$LAST_OUTPUT" | sed 's/^/  | /'
+    fi
+}
+
+# Show a captured variable in verbose mode (command label + output).
+log_captured() {
+    local label="$1"
+    local output="$2"
+    log_verbose "\$ $label"
+    if [[ "$VERBOSE" == "1" ]] && [[ -n "$output" ]]; then
+        echo "$output" | sed 's/^/  | /'
+    fi
+}
+
+# ---------------------------------------------------------------------------
 # Test counters
 # ---------------------------------------------------------------------------
 PASS_COUNT=0

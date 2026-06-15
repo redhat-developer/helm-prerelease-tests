@@ -20,6 +20,7 @@ run_cmd "$HELM_BIN" package "$CHART_NAME"
 # Push chart to OCI
 # ---------------------------------------------------------------------------
 push_output="$("$HELM_BIN" push "${CHART_NAME}-0.1.0.tgz" "oci://${OCI_REPO}" 2>&1)" || true
+log_captured "$HELM_BIN push ${CHART_NAME}-0.1.0.tgz oci://${OCI_REPO}" "$push_output"
 if echo "$push_output" | grep -q "Pushed:" && echo "$push_output" | grep -q "Digest:"; then
     OCI_DIGEST="$(echo "$push_output" | grep "Digest:" | awk '{print $2}')"
     pass "Push chart to OCI"
@@ -36,6 +37,7 @@ fi
 if has_cluster; then
     RELEASE_OCI="oci-install-$$"
     install_output="$("$HELM_BIN" install "$RELEASE_OCI" "oci://${OCI_REPO}/${CHART_NAME}" --version 0.1.0 --wait --timeout 5m 2>&1)" || true
+    log_captured "$HELM_BIN install $RELEASE_OCI oci://${OCI_REPO}/${CHART_NAME} --version 0.1.0 --wait --timeout 5m" "$install_output"
     if echo "$install_output" | grep -qi "STATUS: deployed"; then
         pass "Install from OCI"
     else
@@ -52,6 +54,7 @@ fi
 if has_cluster; then
     RELEASE_DIGEST="oci-digest-$$"
     install_output="$("$HELM_BIN" install "$RELEASE_DIGEST" "oci://${OCI_REPO}/${CHART_NAME}@${OCI_DIGEST}" --wait --timeout 5m 2>&1)" || true
+    log_captured "$HELM_BIN install $RELEASE_DIGEST oci://${OCI_REPO}/${CHART_NAME}@${OCI_DIGEST} --wait --timeout 5m" "$install_output"
     if echo "$install_output" | grep -qi "STATUS: deployed"; then
         pass "Install from OCI by digest"
     else

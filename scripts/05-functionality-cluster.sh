@@ -27,6 +27,7 @@ run_cmd "$HELM_BIN" create "$CHART_NAME"
 # Install chart
 # ---------------------------------------------------------------------------
 install_output="$("$HELM_BIN" install "$RELEASE_NAME" "$CHART_NAME" --wait --timeout 5m 2>&1)" || true
+log_captured "$HELM_BIN install $RELEASE_NAME $CHART_NAME --wait --timeout 5m" "$install_output"
 if echo "$install_output" | grep -qi "STATUS: deployed"; then
     pass "Install chart"
 else
@@ -40,6 +41,7 @@ fi
 # Status check
 # ---------------------------------------------------------------------------
 status_output="$("$HELM_BIN" status "$RELEASE_NAME" 2>&1)" || true
+log_captured "$HELM_BIN status $RELEASE_NAME" "$status_output"
 if echo "$status_output" | grep -qi "STATUS: deployed"; then
     pass "Status check"
 else
@@ -50,7 +52,9 @@ fi
 # Upgrade release
 # ---------------------------------------------------------------------------
 upgrade_output="$("$HELM_BIN" upgrade "$RELEASE_NAME" "$CHART_NAME" --set replicaCount=2 --wait --timeout 5m 2>&1)" || true
+log_captured "$HELM_BIN upgrade $RELEASE_NAME $CHART_NAME --set replicaCount=2 --wait --timeout 5m" "$upgrade_output"
 list_output="$("$HELM_BIN" list 2>&1)" || true
+log_captured "$HELM_BIN list" "$list_output"
 if echo "$list_output" | grep -q "$RELEASE_NAME" && echo "$list_output" | grep -q "2"; then
     pass "Upgrade release"
 else
@@ -61,7 +65,9 @@ fi
 # Rollback release
 # ---------------------------------------------------------------------------
 rollback_output="$("$HELM_BIN" rollback "$RELEASE_NAME" 1 --wait --timeout 5m 2>&1)" || true
+log_captured "$HELM_BIN rollback $RELEASE_NAME 1 --wait --timeout 5m" "$rollback_output"
 list_output="$("$HELM_BIN" list 2>&1)" || true
+log_captured "$HELM_BIN list" "$list_output"
 if echo "$list_output" | grep -q "$RELEASE_NAME" && echo "$list_output" | grep -q "3"; then
     pass "Rollback release"
 else
@@ -72,7 +78,9 @@ fi
 # Uninstall release
 # ---------------------------------------------------------------------------
 uninstall_output="$("$HELM_BIN" uninstall "$RELEASE_NAME" 2>&1)" || true
+log_captured "$HELM_BIN uninstall $RELEASE_NAME" "$uninstall_output"
 list_output="$("$HELM_BIN" list 2>&1)" || true
+log_captured "$HELM_BIN list" "$list_output"
 if ! echo "$list_output" | grep -q "$RELEASE_NAME"; then
     pass "Uninstall release"
 else

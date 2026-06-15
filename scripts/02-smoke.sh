@@ -12,6 +12,7 @@ echo ""
 # Version check
 # ---------------------------------------------------------------------------
 version_output="$("$HELM_BIN" version --short 2>&1)" || true
+log_captured "$HELM_BIN version --short" "$version_output"
 if echo "$version_output" | grep -q "v${HELM_VERSION}"; then
     pass "Version check (${version_output})"
 else
@@ -22,6 +23,7 @@ fi
 # Go version — Red Hat build
 # ---------------------------------------------------------------------------
 full_version="$("$HELM_BIN" version 2>&1)" || true
+log_captured "$HELM_BIN version" "$full_version"
 if echo "$full_version" | grep -q "Red Hat"; then
     go_ver="$(echo "$full_version" | grep -oE 'go[0-9]+\.[0-9]+\.[0-9]+ \(Red Hat [^)]+\)' || echo "found")"
     pass "Go version — Red Hat build (${go_ver})"
@@ -33,6 +35,7 @@ fi
 # Help output
 # ---------------------------------------------------------------------------
 help_output="$("$HELM_BIN" help 2>&1)" || true
+log_captured "$HELM_BIN help" "$help_output"
 if echo "$help_output" | grep -qi "kubernetes package manager"; then
     pass "Help command"
 else
@@ -43,6 +46,7 @@ fi
 # Environment info
 # ---------------------------------------------------------------------------
 env_output="$("$HELM_BIN" env 2>&1)" || true
+log_captured "$HELM_BIN env" "$env_output"
 if echo "$env_output" | grep -q "HELM_"; then
     pass "Environment info"
 else

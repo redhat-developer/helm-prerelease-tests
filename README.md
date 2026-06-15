@@ -12,8 +12,8 @@ Shell test scripts verify that downstream Red Hat helm v4 binaries are correctly
 |---|---|---|
 | linux-amd64 | yes | — |
 | linux-arm64 | yes | — |
-| linux-ppc64le | — | RHEL 9 EC2 |
-| linux-s390x | — | RHEL 9 EC2 |
+| linux-ppc64le | — | Testing Farms |
+| linux-s390x | — | Testing Farms |
 | darwin-amd64 | yes | — |
 | darwin-arm64 | yes | — |
 | win-amd64 | yes | — |

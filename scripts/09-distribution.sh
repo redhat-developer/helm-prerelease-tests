@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Distribution tests: extract .tar.gz and .zip archives, verify contents.
+# Distribution tests: extract .tar.gz archives for all platforms.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
@@ -12,7 +12,7 @@ echo ""
 # .tar.gz extraction — test all available platform archives
 # ---------------------------------------------------------------------------
 tgz_found=false
-for archive in helm-linux-*.tar.gz helm-darwin-*.tar.gz; do
+for archive in helm-linux-*.tar.gz helm-darwin-*.tar.gz helm-windows-*.tar.gz; do
     [[ -f "$archive" ]] || continue
     tgz_found=true
     extract_dir="test-extract-$(basename "$archive" .tar.gz)"
@@ -21,20 +21,27 @@ for archive in helm-linux-*.tar.gz helm-darwin-*.tar.gz; do
 
     if tar -xzf "$archive" -C "$extract_dir" 2>/dev/null; then
         binary_name="$(basename "$archive" .tar.gz)"
+        # Windows binaries have .exe inside the archive
         if [[ -f "${extract_dir}/${binary_name}" ]]; then
-            if command -v file &>/dev/null; then
-                file_out="$(file "${extract_dir}/${binary_name}")"
-                log_captured "file ${extract_dir}/${binary_name}" "$file_out"
-                if echo "$file_out" | grep -qiE "ELF|Mach-O"; then
-                    pass "Extract ${archive}"
-                else
-                    fail "Extract ${archive}" "unexpected file type: $file_out"
-                fi
-            else
+            extracted="${extract_dir}/${binary_name}"
+        elif [[ -f "${extract_dir}/${binary_name}.exe" ]]; then
+            extracted="${extract_dir}/${binary_name}.exe"
+        else
+            fail "Extract ${archive}" "no binary found in archive"
+            rm -rf "$extract_dir"
+            continue
+        fi
+
+        if command -v file &>/dev/null; then
+            file_out="$(file "$extracted")"
+            log_captured "file $extracted" "$file_out"
+            if echo "$file_out" | grep -qiE "ELF|Mach-O|PE32+"; then
                 pass "Extract ${archive}"
+            else
+                fail "Extract ${archive}" "unexpected file type: $file_out"
             fi
         else
-            fail "Extract ${archive}" "binary ${binary_name} not found in archive"
+            pass "Extract ${archive}"
         fi
     else
         fail "Extract ${archive}" "tar extraction failed"
@@ -44,52 +51,6 @@ done
 
 if ! $tgz_found; then
     skip "Extract .tar.gz archives" "no .tar.gz archives found"
-fi
-
-# ---------------------------------------------------------------------------
-# .zip extraction — windows archives
-# ---------------------------------------------------------------------------
-zip_found=false
-if ! command -v unzip &>/dev/null; then
-    skip "Extract .zip archives" "unzip not installed"
-else
-for archive in helm-windows-*.exe.zip; do
-    [[ -f "$archive" ]] || continue
-    zip_found=true
-    extract_dir="test-extract-$(basename "$archive" .zip)"
-    rm -rf "$extract_dir"
-    mkdir -p "$extract_dir"
-
-    if unzip -q "$archive" -d "$extract_dir" 2>/dev/null; then
-        exe_name="$(basename "$archive" .zip)"
-        if [[ -f "${extract_dir}/${exe_name}" ]]; then
-            if command -v file &>/dev/null; then
-                file_out="$(file "${extract_dir}/${exe_name}")"
-                log_captured "file ${extract_dir}/${exe_name}" "$file_out"
-                if echo "$file_out" | grep -qi "PE32+"; then
-                    pass "Extract ${archive}"
-                else
-                    fail "Extract ${archive}" "unexpected file type: $file_out"
-                fi
-            else
-                pass "Extract ${archive}"
-            fi
-        else
-            fail "Extract ${archive}" "exe ${exe_name} not found in archive"
-        fi
-    else
-        fail "Extract ${archive}" "unzip failed"
-    fi
-    rm -rf "$extract_dir"
-done
-
-if ! $zip_found; then
-    if [[ "$CURRENT_OS" == "windows" ]]; then
-        fail "Extract .zip archives" "no .zip archives found on windows"
-    else
-        skip "Extract .zip archives" "no .zip archives found (expected on non-windows)"
-    fi
-fi
 fi
 
 summary

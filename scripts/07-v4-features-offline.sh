@@ -339,4 +339,109 @@ else
 fi
 rm -rf v4-schema2020-test
 
+# ---------------------------------------------------------------------------
+# 22. Success messages to stdout (v4.2.1+)
+# ---------------------------------------------------------------------------
+if skip_if_below "Success messages to stdout" "4.2.1"; then
+    rm -rf v4-stdout-test
+    run_cmd "$HELM_BIN" create v4-stdout-test
+    stdout_out="$("$HELM_BIN" template v4-stdout-test v4-stdout-test 2>/dev/null)" || true
+    if [[ -n "$stdout_out" ]]; then
+        pass "Success messages to stdout"
+    else
+        fail "Success messages to stdout" "template output went to stderr instead of stdout"
+    fi
+    rm -rf v4-stdout-test
+fi
+
+# ---------------------------------------------------------------------------
+# 23. --wait help shows watcher strategy (v4.2.0+)
+# ---------------------------------------------------------------------------
+if skip_if_below "--wait help shows watcher strategy" "4.2.0"; then
+    install_help="$("$HELM_BIN" install --help 2>&1)" || true
+    log_captured "$HELM_BIN install --help" "$install_help"
+    if echo "$install_help" | grep -qi "watcher"; then
+        pass "--wait help shows watcher strategy"
+    else
+        fail "--wait help shows watcher strategy" "watcher strategy not in install help"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 24. --cascade foreground in uninstall help (v4.2.0+)
+# ---------------------------------------------------------------------------
+if skip_if_below "--cascade foreground in uninstall help" "4.2.0"; then
+    uninstall_help="$("$HELM_BIN" uninstall --help 2>&1)" || true
+    log_captured "$HELM_BIN uninstall --help" "$uninstall_help"
+    if echo "$uninstall_help" | grep -qi "cascade"; then
+        pass "--cascade foreground in uninstall help"
+    else
+        fail "--cascade foreground in uninstall help" "cascade not in uninstall help"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 25. --atomic restored as deprecated on install (v4.2.0+)
+# ---------------------------------------------------------------------------
+if skip_if_below "--atomic on install --help" "4.2.0"; then
+    install_help="$("$HELM_BIN" install --help 2>&1)" || true
+    log_captured "$HELM_BIN install --help" "$install_help"
+    if echo "$install_help" | grep -qi "atomic"; then
+        pass "--atomic on install --help"
+    else
+        fail "--atomic on install --help" "atomic not found in install help"
+    fi
+fi
+
+# ---------------------------------------------------------------------------
+# 26. Version range constraint no spurious warning (v4.2.1+)
+# ---------------------------------------------------------------------------
+if skip_if_below "Version range constraint warning fix" "4.2.1"; then
+    run_cmd "$HELM_BIN" repo add stable-range https://charts.helm.sh/stable || true
+    range_output="$("$HELM_BIN" pull stable-range/mysql --version ">=1.6.0" --destination /tmp 2>&1)" || true
+    log_captured "$HELM_BIN pull stable-range/mysql --version '>=1.6.0'" "$range_output"
+    if ! echo "$range_output" | grep -qi "unable to find exact version"; then
+        pass "Version range constraint warning fix"
+    else
+        fail "Version range constraint warning fix" "spurious warning present: $range_output"
+    fi
+    rm -f /tmp/mysql-*.tgz
+    run_cmd "$HELM_BIN" repo remove stable-range || true
+fi
+
+# ---------------------------------------------------------------------------
+# 27. Template newline after doc separators (v4.2.0+)
+# ---------------------------------------------------------------------------
+if skip_if_below "Template newline after doc separators" "4.2.0"; then
+    rm -rf v4-newline-test
+    run_cmd "$HELM_BIN" create v4-newline-test
+    cat > v4-newline-test/templates/multi-doc.yaml << 'TMPLEOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: doc1
+data:
+  key: value1
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: doc2
+data:
+  key: value2
+TMPLEOF
+    newline_out="$("$HELM_BIN" template v4-newline-test v4-newline-test 2>&1)" || true
+    log_captured "$HELM_BIN template v4-newline-test v4-newline-test" "$newline_out"
+    if echo "$newline_out" | grep -q "doc1" && echo "$newline_out" | grep -q "doc2"; then
+        if echo "$newline_out" | grep -qE "^---$"; then
+            pass "Template newline after doc separators"
+        else
+            fail "Template newline after doc separators" "doc separator not properly formatted"
+        fi
+    else
+        fail "Template newline after doc separators" "multi-doc template failed"
+    fi
+    rm -rf v4-newline-test
+fi
+
 summary

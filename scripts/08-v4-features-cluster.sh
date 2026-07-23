@@ -149,6 +149,50 @@ rm -rf "$OCI_CHART" "${OCI_CHART}-0.1.0.tgz"
 skip "Color status output" "not verifiable in non-TTY environment — manual check needed"
 
 # ---------------------------------------------------------------------------
+# 10. --atomic on install (v4.2.0+)
+# ---------------------------------------------------------------------------
+if skip_if_below "--atomic on install" "4.2.0"; then
+    RELEASE_INST_ATOMIC="inst-atomic-$$"
+    inst_atomic_out="$("$HELM_BIN" install "$RELEASE_INST_ATOMIC" "$CHART_NAME" --atomic --timeout 5m 2>&1)" || true
+    log_captured "$HELM_BIN install $RELEASE_INST_ATOMIC $CHART_NAME --atomic --timeout 5m" "$inst_atomic_out"
+    if echo "$inst_atomic_out" | grep -qi "STATUS: deployed"; then
+        if echo "$inst_atomic_out" | grep -qi "deprecated\|rollback-on-failure"; then
+            pass "--atomic on install (deployed with deprecation warning)"
+        else
+            pass "--atomic on install (deployed)"
+        fi
+    else
+        fail "--atomic on install" "$inst_atomic_out"
+    fi
+    run_cmd "$HELM_BIN" uninstall "$RELEASE_INST_ATOMIC" || true
+fi
+
+# ---------------------------------------------------------------------------
+# 11. --dry-run=server respects generateName (v4.2.0+)
+# ---------------------------------------------------------------------------
+if skip_if_below "--dry-run=server generateName" "4.2.0"; then
+    GEN_CHART="v4-genname-test"
+    rm -rf "$GEN_CHART"
+    run_cmd "$HELM_BIN" create "$GEN_CHART"
+    cat > "${GEN_CHART}/templates/genname-cm.yaml" << 'TMPLEOF'
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  generateName: gentest-
+data:
+  key: value
+TMPLEOF
+    genname_out="$("$HELM_BIN" install genname-test "$GEN_CHART" --dry-run=server 2>&1)" || true
+    log_captured "$HELM_BIN install genname-test $GEN_CHART --dry-run=server" "$genname_out"
+    if echo "$genname_out" | grep -qi "gentest-"; then
+        pass "--dry-run=server generateName"
+    else
+        fail "--dry-run=server generateName" "$genname_out"
+    fi
+    rm -rf "$GEN_CHART"
+fi
+
+# ---------------------------------------------------------------------------
 # Cleanup
 # ---------------------------------------------------------------------------
 rm -rf "$CHART_NAME"

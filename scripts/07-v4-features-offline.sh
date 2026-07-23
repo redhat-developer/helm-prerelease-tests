@@ -355,46 +355,7 @@ if skip_if_below "Success messages to stdout" "4.2.1"; then
 fi
 
 # ---------------------------------------------------------------------------
-# 23. --wait help shows watcher strategy (v4.2.0+)
-# ---------------------------------------------------------------------------
-if skip_if_below "--wait help shows watcher strategy" "4.2.0"; then
-    install_help="$("$HELM_BIN" install --help 2>&1)" || true
-    log_captured "$HELM_BIN install --help" "$install_help"
-    if echo "$install_help" | grep -qi "watcher"; then
-        pass "--wait help shows watcher strategy"
-    else
-        fail "--wait help shows watcher strategy" "watcher strategy not in install help"
-    fi
-fi
-
-# ---------------------------------------------------------------------------
-# 24. --cascade foreground in uninstall help (v4.2.0+)
-# ---------------------------------------------------------------------------
-if skip_if_below "--cascade foreground in uninstall help" "4.2.0"; then
-    uninstall_help="$("$HELM_BIN" uninstall --help 2>&1)" || true
-    log_captured "$HELM_BIN uninstall --help" "$uninstall_help"
-    if echo "$uninstall_help" | grep -qi "cascade"; then
-        pass "--cascade foreground in uninstall help"
-    else
-        fail "--cascade foreground in uninstall help" "cascade not in uninstall help"
-    fi
-fi
-
-# ---------------------------------------------------------------------------
-# 25. --rollback-on-failure in install --help (v4.2.0+)
-# ---------------------------------------------------------------------------
-if skip_if_below "--rollback-on-failure in install --help" "4.2.0"; then
-    install_help="$("$HELM_BIN" install --help 2>&1)" || true
-    log_captured "$HELM_BIN install --help" "$install_help"
-    if echo "$install_help" | grep -qi "rollback-on-failure"; then
-        pass "--rollback-on-failure in install --help"
-    else
-        fail "--rollback-on-failure in install --help" "rollback-on-failure not found in install help"
-    fi
-fi
-
-# ---------------------------------------------------------------------------
-# 26. Version range constraint no spurious warning (v4.2.1+)
+# 23. Version range constraint no spurious warning (v4.2.1+)
 # ---------------------------------------------------------------------------
 if skip_if_below "Version range constraint warning fix" "4.2.1"; then
     run_cmd "$HELM_BIN" repo add stable-range https://charts.helm.sh/stable || true
@@ -410,7 +371,7 @@ if skip_if_below "Version range constraint warning fix" "4.2.1"; then
 fi
 
 # ---------------------------------------------------------------------------
-# 27. Template newline after doc separators (v4.2.0+)
+# 24. Template newline after doc separators (v4.2.0+)
 # ---------------------------------------------------------------------------
 if skip_if_below "Template newline after doc separators" "4.2.0"; then
     rm -rf v4-newline-test

@@ -381,15 +381,15 @@ if skip_if_below "--cascade foreground in uninstall help" "4.2.0"; then
 fi
 
 # ---------------------------------------------------------------------------
-# 25. --atomic restored as deprecated on install (v4.2.0+)
+# 25. --rollback-on-failure in install --help (v4.2.0+)
 # ---------------------------------------------------------------------------
-if skip_if_below "--atomic on install --help" "4.2.0"; then
+if skip_if_below "--rollback-on-failure in install --help" "4.2.0"; then
     install_help="$("$HELM_BIN" install --help 2>&1)" || true
     log_captured "$HELM_BIN install --help" "$install_help"
-    if echo "$install_help" | grep -qi "atomic"; then
-        pass "--atomic on install --help"
+    if echo "$install_help" | grep -qi "rollback-on-failure"; then
+        pass "--rollback-on-failure in install --help"
     else
-        fail "--atomic on install --help" "atomic not found in install help"
+        fail "--rollback-on-failure in install --help" "rollback-on-failure not found in install help"
     fi
 fi
 

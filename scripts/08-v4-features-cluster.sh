@@ -149,22 +149,18 @@ rm -rf "$OCI_CHART" "${OCI_CHART}-0.1.0.tgz"
 skip "Color status output" "not verifiable in non-TTY environment — manual check needed"
 
 # ---------------------------------------------------------------------------
-# 10. --atomic on install (v4.2.0+)
+# 10. --rollback-on-failure on install (v4.2.0+)
 # ---------------------------------------------------------------------------
-if skip_if_below "--atomic on install" "4.2.0"; then
-    RELEASE_INST_ATOMIC="inst-atomic-$$"
-    inst_atomic_out="$("$HELM_BIN" install "$RELEASE_INST_ATOMIC" "$CHART_NAME" --atomic --timeout 5m 2>&1)" || true
-    log_captured "$HELM_BIN install $RELEASE_INST_ATOMIC $CHART_NAME --atomic --timeout 5m" "$inst_atomic_out"
-    if echo "$inst_atomic_out" | grep -qi "STATUS: deployed"; then
-        if echo "$inst_atomic_out" | grep -qi "deprecated\|rollback-on-failure"; then
-            pass "--atomic on install (deployed with deprecation warning)"
-        else
-            pass "--atomic on install (deployed)"
-        fi
+if skip_if_below "--rollback-on-failure on install" "4.2.0"; then
+    RELEASE_RBF_INST="rbf-inst-$$"
+    rbf_inst_out="$("$HELM_BIN" install "$RELEASE_RBF_INST" "$CHART_NAME" --rollback-on-failure --wait --timeout 5m 2>&1)" || true
+    log_captured "$HELM_BIN install $RELEASE_RBF_INST $CHART_NAME --rollback-on-failure --wait --timeout 5m" "$rbf_inst_out"
+    if echo "$rbf_inst_out" | grep -qi "STATUS: deployed"; then
+        pass "--rollback-on-failure on install"
     else
-        fail "--atomic on install" "$inst_atomic_out"
+        fail "--rollback-on-failure on install" "$rbf_inst_out"
     fi
-    run_cmd "$HELM_BIN" uninstall "$RELEASE_INST_ATOMIC" || true
+    run_cmd "$HELM_BIN" uninstall "$RELEASE_RBF_INST" || true
 fi
 
 # ---------------------------------------------------------------------------

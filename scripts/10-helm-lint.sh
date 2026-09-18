@@ -9,7 +9,7 @@ echo "=== 10: HELM LINT ==="
 echo ""
 
 # ---------------------------------------------------------------------------
-# 1. Lint a valid chart (baseline)
+# Lint a valid chart (baseline)
 # ---------------------------------------------------------------------------
 rm -rf lint-valid-chart
 run_cmd "$HELM_BIN" create lint-valid-chart
@@ -23,30 +23,24 @@ fi
 rm -rf lint-valid-chart
 
 # ---------------------------------------------------------------------------
-# 2. Lint with --strict (warnings treated as errors)
+# Lint with --strict (warnings treated as errors)
 # ---------------------------------------------------------------------------
 rm -rf lint-strict-chart
 run_cmd "$HELM_BIN" create lint-strict-chart
-# Remove the icon field to trigger a warning (icon is recommended but optional)
-grep -v "^icon:" lint-strict-chart/Chart.yaml > lint-strict-chart/Chart.yaml.tmp
+# Remove the description field to trigger a "description is empty" lint warning
+grep -v "^description:" lint-strict-chart/Chart.yaml > lint-strict-chart/Chart.yaml.tmp
 mv lint-strict-chart/Chart.yaml.tmp lint-strict-chart/Chart.yaml
 strict_output="$("$HELM_BIN" lint lint-strict-chart --strict 2>&1)" || true
 log_captured "$HELM_BIN lint lint-strict-chart --strict" "$strict_output"
-if echo "$strict_output" | grep -qi "warning\|error\|1 chart(s) failed"; then
+if echo "$strict_output" | grep -q "1 chart(s) failed"; then
     pass "Lint --strict treats warnings as errors"
 else
-    # Some charts may not produce warnings without icon — check that --strict
-    # flag is at least accepted without unknown-flag error
-    if echo "$strict_output" | grep -qi "unknown flag"; then
-        fail "Lint --strict" "flag not recognized: $strict_output"
-    else
-        pass "Lint --strict flag accepted"
-    fi
+    fail "Lint --strict" "expected chart failure with --strict on chart missing description: $strict_output"
 fi
 rm -rf lint-strict-chart
 
 # ---------------------------------------------------------------------------
-# 3. Lint chart with valid semver version
+# Lint chart with valid semver version
 # ---------------------------------------------------------------------------
 rm -rf lint-semver-valid
 run_cmd "$HELM_BIN" create lint-semver-valid
@@ -68,7 +62,7 @@ fi
 rm -rf lint-semver-valid
 
 # ---------------------------------------------------------------------------
-# 4. Lint chart with invalid semver version
+# Lint chart with invalid semver version
 # ---------------------------------------------------------------------------
 rm -rf lint-semver-invalid
 run_cmd "$HELM_BIN" create lint-semver-invalid
@@ -82,15 +76,15 @@ appVersion: "1.0.0"
 CHARTEOF
 invalid_output="$("$HELM_BIN" lint lint-semver-invalid 2>&1)" || true
 log_captured "$HELM_BIN lint lint-semver-invalid" "$invalid_output"
-if echo "$invalid_output" | grep -qi "version\|semver\|error\|failed"; then
+if echo "$invalid_output" | grep -q "1 chart(s) failed"; then
     pass "Lint invalid semver version detected"
 else
-    fail "Lint invalid semver version" "expected error about version: $invalid_output"
+    fail "Lint invalid semver version" "expected chart failure for invalid version 'not-a-version': $invalid_output"
 fi
 rm -rf lint-semver-invalid
 
 # ---------------------------------------------------------------------------
-# 5. Lint chart with prerelease semver version
+# Lint chart with prerelease semver version
 # ---------------------------------------------------------------------------
 rm -rf lint-semver-prerelease
 run_cmd "$HELM_BIN" create lint-semver-prerelease
@@ -112,7 +106,7 @@ fi
 rm -rf lint-semver-prerelease
 
 # ---------------------------------------------------------------------------
-# 6. Lint chart with build metadata semver version
+# Lint chart with build metadata semver version
 # ---------------------------------------------------------------------------
 rm -rf lint-semver-build
 run_cmd "$HELM_BIN" create lint-semver-build
@@ -134,7 +128,7 @@ fi
 rm -rf lint-semver-build
 
 # ---------------------------------------------------------------------------
-# 7. Lint with external values file (--values)
+# Lint with external values file (--values)
 # ---------------------------------------------------------------------------
 rm -rf lint-values-chart
 run_cmd "$HELM_BIN" create lint-values-chart
@@ -154,7 +148,7 @@ rm -f lint-extra-values.yaml
 rm -rf lint-values-chart
 
 # ---------------------------------------------------------------------------
-# 8. Lint with --set overrides
+# Lint with --set overrides
 # ---------------------------------------------------------------------------
 rm -rf lint-set-chart
 run_cmd "$HELM_BIN" create lint-set-chart
@@ -168,7 +162,7 @@ fi
 rm -rf lint-set-chart
 
 # ---------------------------------------------------------------------------
-# 9. Lint a chart with template errors
+# Lint a chart with template errors
 # ---------------------------------------------------------------------------
 rm -rf lint-error-chart
 run_cmd "$HELM_BIN" create lint-error-chart
@@ -182,15 +176,15 @@ data:
 TMPLEOF
 error_output="$("$HELM_BIN" lint lint-error-chart 2>&1)" || true
 log_captured "$HELM_BIN lint lint-error-chart" "$error_output"
-if echo "$error_output" | grep -qi "error\|failed"; then
+if echo "$error_output" | grep -q "1 chart(s) failed"; then
     pass "Lint detects template errors"
 else
-    fail "Lint detects template errors" "expected lint error: $error_output"
+    fail "Lint detects template errors" "expected chart failure for nil-pointer template: $error_output"
 fi
 rm -rf lint-error-chart
 
 # ---------------------------------------------------------------------------
-# 10. Lint multiple charts at once
+# Lint multiple charts at once
 # ---------------------------------------------------------------------------
 rm -rf lint-multi-a lint-multi-b
 run_cmd "$HELM_BIN" create lint-multi-a
@@ -205,7 +199,7 @@ fi
 rm -rf lint-multi-a lint-multi-b
 
 # ---------------------------------------------------------------------------
-# 11. Lint with --quiet flag
+# Lint with --quiet flag
 # ---------------------------------------------------------------------------
 rm -rf lint-quiet-chart
 run_cmd "$HELM_BIN" create lint-quiet-chart

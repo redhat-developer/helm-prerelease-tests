@@ -32,6 +32,7 @@ Shell test scripts verify that downstream Red Hat helm v4 binaries are correctly
 | 07-v4-features-offline.sh | v4-specific offline feature tests | no |
 | 08-v4-features-cluster.sh | v4-specific cluster feature tests | yes |
 | 09-distribution.sh | Archive extraction (.tar.gz, .zip) | no |
+| 10-helm-lint.sh | Helm lint: semver validation, strict mode, values overrides, template errors | no |
 
 ## Running locally
 

@@ -57,7 +57,7 @@ test: |
   export VERBOSE=1
 
   FAIL=0
-  for script in "$TMT_TREE"/scripts/0{1,2,3,4,7,9}-*.sh; do
+  for script in "$TMT_TREE"/scripts/{0{1,2,3,4,7,9},10}-*.sh; do
     bash "$script" || FAIL=1
   done
   exit $FAIL

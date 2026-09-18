@@ -104,6 +104,10 @@ rm -rf lint-semver-invalid
 # ---------------------------------------------------------------------------
 # Lint chart with missing patch component in version (1.0 — semver boundary)
 # ---------------------------------------------------------------------------
+# The Masterminds/semver library used by Helm coerces "1.0" to "1.0.0" and
+# emits a lint WARNING rather than an ERROR, so bare "helm lint" may report
+# "0 chart(s) failed".  --strict promotes that WARNING to an ERROR, ensuring
+# a two-part version string is always caught as a chart failure.
 rm -rf lint-semver-nopatch
 run_cmd "$HELM_BIN" create lint-semver-nopatch
 if [[ -d lint-semver-nopatch ]]; then
@@ -115,12 +119,12 @@ type: application
 version: 1.0
 appVersion: "1.0.0"
 CHARTEOF
-    nopatch_output="$("$HELM_BIN" lint lint-semver-nopatch 2>&1)" || true
-    log_captured "$HELM_BIN lint lint-semver-nopatch" "$nopatch_output"
+    nopatch_output="$("$HELM_BIN" lint lint-semver-nopatch --strict 2>&1)" || true
+    log_captured "$HELM_BIN lint lint-semver-nopatch --strict" "$nopatch_output"
     if echo "$nopatch_output" | grep -q "1 chart(s) failed"; then
         pass "Lint rejects missing-patch version (1.0)"
     else
-        fail "Lint rejects missing-patch version" "expected chart failure for version '1.0': $nopatch_output"
+        fail "Lint rejects missing-patch version" "expected chart failure for version '1.0' with --strict: $nopatch_output"
     fi
 else
     fail "Lint rejects missing-patch version" "helm create failed to create chart directory"

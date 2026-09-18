@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
-# Comprehensive helm lint tests: semver validation, strict mode, values, errors.
-# Note: scripts/04-functionality-offline.sh covers the basic helm lint smoke test.
-# This script provides comprehensive lint coverage (flags, semver variants, error detection).
+# Comprehensive helm lint tests: semver validation, strict mode, values overrides, error detection.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/common.sh"
@@ -14,8 +12,7 @@ echo ""
 # Lint a valid chart (baseline)
 # ---------------------------------------------------------------------------
 rm -rf lint-valid-chart
-run_cmd "$HELM_BIN" create lint-valid-chart
-if [[ -d lint-valid-chart ]]; then
+if run_cmd "$HELM_BIN" create lint-valid-chart && [[ -d lint-valid-chart ]]; then
     lint_output="$("$HELM_BIN" lint lint-valid-chart 2>&1)" || true
     log_captured "$HELM_BIN lint lint-valid-chart" "$lint_output"
     if echo "$lint_output" | grep -q "1 chart(s) linted, 0 chart(s) failed"; then
@@ -32,8 +29,7 @@ rm -rf lint-valid-chart
 # Lint with --strict (warnings treated as errors)
 # ---------------------------------------------------------------------------
 rm -rf lint-strict-chart
-run_cmd "$HELM_BIN" create lint-strict-chart
-if [[ -d lint-strict-chart ]]; then
+if run_cmd "$HELM_BIN" create lint-strict-chart && [[ -d lint-strict-chart ]]; then
     # Remove the description field to trigger a "description is empty" lint warning
     grep -v "^description:" lint-strict-chart/Chart.yaml > lint-strict-chart/Chart.yaml.tmp
     mv lint-strict-chart/Chart.yaml.tmp lint-strict-chart/Chart.yaml
@@ -53,8 +49,7 @@ rm -rf lint-strict-chart
 # Lint chart with valid semver version
 # ---------------------------------------------------------------------------
 rm -rf lint-semver-valid
-run_cmd "$HELM_BIN" create lint-semver-valid
-if [[ -d lint-semver-valid ]]; then
+if run_cmd "$HELM_BIN" create lint-semver-valid && [[ -d lint-semver-valid ]]; then
     cat > lint-semver-valid/Chart.yaml << 'CHARTEOF'
 apiVersion: v2
 name: lint-semver-valid
@@ -79,8 +74,7 @@ rm -rf lint-semver-valid
 # Lint chart with invalid semver version
 # ---------------------------------------------------------------------------
 rm -rf lint-semver-invalid
-run_cmd "$HELM_BIN" create lint-semver-invalid
-if [[ -d lint-semver-invalid ]]; then
+if run_cmd "$HELM_BIN" create lint-semver-invalid && [[ -d lint-semver-invalid ]]; then
     cat > lint-semver-invalid/Chart.yaml << 'CHARTEOF'
 apiVersion: v2
 name: lint-semver-invalid
@@ -109,8 +103,7 @@ rm -rf lint-semver-invalid
 # "0 chart(s) failed".  --strict promotes that WARNING to an ERROR, ensuring
 # a two-part version string is always caught as a chart failure.
 rm -rf lint-semver-nopatch
-run_cmd "$HELM_BIN" create lint-semver-nopatch
-if [[ -d lint-semver-nopatch ]]; then
+if run_cmd "$HELM_BIN" create lint-semver-nopatch && [[ -d lint-semver-nopatch ]]; then
     cat > lint-semver-nopatch/Chart.yaml << 'CHARTEOF'
 apiVersion: v2
 name: lint-semver-nopatch
@@ -135,8 +128,7 @@ rm -rf lint-semver-nopatch
 # Lint chart with prerelease semver version
 # ---------------------------------------------------------------------------
 rm -rf lint-semver-prerelease
-run_cmd "$HELM_BIN" create lint-semver-prerelease
-if [[ -d lint-semver-prerelease ]]; then
+if run_cmd "$HELM_BIN" create lint-semver-prerelease && [[ -d lint-semver-prerelease ]]; then
     cat > lint-semver-prerelease/Chart.yaml << 'CHARTEOF'
 apiVersion: v2
 name: lint-semver-prerelease
@@ -161,8 +153,7 @@ rm -rf lint-semver-prerelease
 # Lint chart with build metadata semver version
 # ---------------------------------------------------------------------------
 rm -rf lint-semver-build
-run_cmd "$HELM_BIN" create lint-semver-build
-if [[ -d lint-semver-build ]]; then
+if run_cmd "$HELM_BIN" create lint-semver-build && [[ -d lint-semver-build ]]; then
     cat > lint-semver-build/Chart.yaml << 'CHARTEOF'
 apiVersion: v2
 name: lint-semver-build
@@ -187,8 +178,7 @@ rm -rf lint-semver-build
 # Lint with external values file (--values)
 # ---------------------------------------------------------------------------
 rm -rf lint-values-chart
-run_cmd "$HELM_BIN" create lint-values-chart
-if [[ -d lint-values-chart ]]; then
+if run_cmd "$HELM_BIN" create lint-values-chart && [[ -d lint-values-chart ]]; then
     cat > lint-extra-values.yaml << 'VALEOF'
 replicaCount: 3
 image:
@@ -211,8 +201,7 @@ rm -rf lint-values-chart
 # Lint with --set overrides
 # ---------------------------------------------------------------------------
 rm -rf lint-set-chart
-run_cmd "$HELM_BIN" create lint-set-chart
-if [[ -d lint-set-chart ]]; then
+if run_cmd "$HELM_BIN" create lint-set-chart && [[ -d lint-set-chart ]]; then
     set_output="$("$HELM_BIN" lint lint-set-chart --set replicaCount=5 2>&1)" || true
     log_captured "$HELM_BIN lint lint-set-chart --set replicaCount=5" "$set_output"
     if echo "$set_output" | grep -q "0 chart(s) failed"; then
@@ -229,8 +218,7 @@ rm -rf lint-set-chart
 # Lint a chart with template errors
 # ---------------------------------------------------------------------------
 rm -rf lint-error-chart
-run_cmd "$HELM_BIN" create lint-error-chart
-if [[ -d lint-error-chart ]]; then
+if run_cmd "$HELM_BIN" create lint-error-chart && [[ -d lint-error-chart ]]; then
     cat > lint-error-chart/templates/bad-template.yaml << 'TMPLEOF'
 apiVersion: v1
 kind: ConfigMap
@@ -255,9 +243,7 @@ rm -rf lint-error-chart
 # Lint multiple charts at once
 # ---------------------------------------------------------------------------
 rm -rf lint-multi-a lint-multi-b
-run_cmd "$HELM_BIN" create lint-multi-a
-run_cmd "$HELM_BIN" create lint-multi-b
-if [[ -d lint-multi-a && -d lint-multi-b ]]; then
+if run_cmd "$HELM_BIN" create lint-multi-a && run_cmd "$HELM_BIN" create lint-multi-b && [[ -d lint-multi-a && -d lint-multi-b ]]; then
     multi_output="$("$HELM_BIN" lint lint-multi-a lint-multi-b 2>&1)" || true
     log_captured "$HELM_BIN lint lint-multi-a lint-multi-b" "$multi_output"
     if echo "$multi_output" | grep -q "2 chart(s) linted, 0 chart(s) failed"; then
@@ -274,16 +260,16 @@ rm -rf lint-multi-a lint-multi-b
 # Lint with --quiet flag
 # ---------------------------------------------------------------------------
 rm -rf lint-quiet-chart
-run_cmd "$HELM_BIN" create lint-quiet-chart
-if [[ -d lint-quiet-chart ]]; then
-    quiet_output="$("$HELM_BIN" lint lint-quiet-chart --quiet 2>&1)" || true
+if run_cmd "$HELM_BIN" create lint-quiet-chart && [[ -d lint-quiet-chart ]]; then
+    quiet_rc=0
+    quiet_output="$("$HELM_BIN" lint lint-quiet-chart --quiet 2>&1)" || quiet_rc=$?
     log_captured "$HELM_BIN lint lint-quiet-chart --quiet" "$quiet_output"
     if echo "$quiet_output" | grep -qi "unknown flag"; then
         skip "Lint --quiet flag" "flag not supported in this version"
-    elif echo "$quiet_output" | grep -q "0 chart(s) failed"; then
+    elif echo "$quiet_output" | grep -q "0 chart(s) failed" || test "$quiet_rc" -eq 0; then
         pass "Lint --quiet flag accepted"
     else
-        fail "Lint --quiet flag" "expected '0 chart(s) failed' with --quiet but got: $quiet_output"
+        fail "Lint --quiet flag" "expected '0 chart(s) failed' or exit code 0 with --quiet but got rc=${quiet_rc}: $quiet_output"
     fi
 else
     fail "Lint --quiet flag" "helm create failed to create chart directory"

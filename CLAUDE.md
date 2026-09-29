@@ -45,7 +45,10 @@ Seven platform targets matter for sign-off: `linux-amd64`, `linux-arm64`, `linux
 | `08-v4-features-cluster.sh` | v4-specific feature tests that do need a cluster | yes |
 | `09-distribution.sh` | Archive extraction: `.tar.gz`, `.zip` | no |
 
-Add new test cases inside the matching numbered script, following the existing `pass "name"` / `fail "name" "detail"` / `skip "name" "reason"` pattern from `common.sh`. A genuinely new *category* is rare — prefer extending an existing script over adding a `10-*.sh`, and if you do add one, wire it into both `.github/workflows/test-binary.yml` and `.tekton/helm-prerelease-tests-pipeline.yaml` so it isn't silently skipped by one of the two runners.
+Add new test cases inside the matching numbered script, following the existing `pass "name"` / `fail "name" "detail"` / `skip "name" "reason"` pattern from `common.sh`. A genuinely new *category* is rare — prefer extending an existing script over adding a `10-*.sh`, and if you do add one:
+
+1. Wire it into both `.github/workflows/test-binary.yml` and `.tekton/helm-prerelease-tests-pipeline.yaml` so it isn't silently skipped by one of the two runners. **Agents cannot do this step** (workflow files are off-limits; Tekton files are sensitive — see above). The agent must include a clearly-labeled "Human action required — CI wiring" section in the PR description listing the exact additions needed in each file, and must apply the `needs-human` label. The PR is not complete until a human completes the wiring.
+2. Consider opening a companion issue titled "Wire `<NN>-<name>.sh` into CI" so the wiring work is tracked independently and survives if the PR is closed or rebased.
 
 ## Running tests locally
 

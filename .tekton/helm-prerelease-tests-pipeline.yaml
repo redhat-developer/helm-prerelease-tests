@@ -37,7 +37,7 @@ spec:
               echo "Cloned test repo at $(cd /shared/tests && git rev-parse --short HEAD)"
 
           - name: extract-binaries
-            image: registry.redhat.io/openshift4/ose-cli:latest
+            image: registry.redhat.io/openshift4/ose-cli-rhel9:v4.19
             volumeMounts:
               - name: shared
                 mountPath: /shared

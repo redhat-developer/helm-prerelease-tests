@@ -71,6 +71,10 @@ When writing or triaging an issue meant for the `code` agent, be explicit that w
 
 `.tekton/helm-prerelease-tests-pipeline.yaml` (the release/Konflux pipeline definition) isn't blocked by GitHub the way workflow files are, but it's just as high-blast-radius if an agent gets it wrong. Scope issues to avoid it unless a human is going to review that specific diff closely.
 
+### Treat `*-plan.md` files as human-managed too
+
+`*-plan.md` and `*-integration-plan.md` files document human decisions about future work. Do not modify them unless the issue explicitly asks for it. If a glob pattern or file reference in such a document appears to be stale relative to your changes, note it in the PR description rather than editing the document.
+
 ### How the pipeline actually triggers
 
 - `triage`: fires automatically on issue opened/edited, or manually via `/fs-triage` comment.

@@ -58,6 +58,8 @@ Seven platform targets matter for sign-off: `linux-amd64`, `linux-arm64`, `linux
 | `01-image-checks.sh` | Image labels (`name`, `version`, `release`, stream `cpe`), entrypoint binary presence, `helm version` output |
 | `02-non-cluster-suite.sh` | Runs `scripts/binary/non-cluster/` against the container's `/usr/local/bin/helm` — non-cluster only; cluster-based container tests are a separate future effort |
 
+When extending `scripts/container/02-non-cluster-suite.sh`, do not add scripts that depend on the release archive — currently `01-validation.sh` (checksums, requires `sha256sum.txt`) and `06-distribution.sh` (archive extraction). These files are present only in the binary CI context where the release tarball is unpacked; they will never be available in the container execution context. The suite uses a `case` statement to skip them explicitly; update that exclusion list if new archive-dependent scripts are added to `binary/non-cluster/`.
+
 Add new test cases inside the matching script, following the existing `pass "name"` / `fail "name" "detail"` / `skip "name" "reason"` pattern from `common.sh`. A genuinely new *category* in `binary/` is rare — prefer extending an existing script. If you do add one, place it in the correct subfolder (`non-cluster/` or `cluster/`) and wire it into both `.github/workflows/test-binary.yml` and the matching `.tekton/` pipeline. Workflow files are off-limits to fullsend agents — include a "Human action required — CI wiring" note in the PR description.
 
 ## Running tests locally

@@ -87,7 +87,7 @@ spec:
               #!/usr/bin/env bash
               set -uo pipefail
 
-              SCRIPTS="/shared/tests/scripts"
+              SCRIPTS="/shared/tests/scripts/binary/non-cluster"
               RESULTS_DIR="/shared/test-results"
               mkdir -p "$RESULTS_DIR"
 
@@ -96,16 +96,7 @@ spec:
               TOTAL_SKIP=0
               FAILED_SUITES=()
 
-              for script in \
-                "$SCRIPTS"/01-validation.sh \
-                "$SCRIPTS"/02-smoke.sh \
-                "$SCRIPTS"/03-dependencies.sh \
-                "$SCRIPTS"/04-functionality-offline.sh \
-                "$SCRIPTS"/05-functionality-cluster.sh \
-                "$SCRIPTS"/06-oci.sh \
-                "$SCRIPTS"/07-v4-features-offline.sh \
-                "$SCRIPTS"/08-v4-features-cluster.sh \
-                "$SCRIPTS"/09-distribution.sh; do
+              for script in "$SCRIPTS"/*.sh; do
 
                 suite="$(basename "$script" .sh)"
                 echo ""

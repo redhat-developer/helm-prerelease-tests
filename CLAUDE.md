@@ -6,11 +6,7 @@ Guidance for Claude (and other AI agents, including fullsend's automated agents)
 
 Downstream Red Hat packaging QA for the Helm CLI. This repo currently validates that the **binary artifacts** Red Hat ships for Helm are correctly built, distributed, and functional. It is not a Helm migration or usage guide.
 
-**Scope today vs. later:** binary-only is the current scope, not a permanent boundary.
-- RPM packaging isn't tested here because Red Hat isn't releasing an RPM yet — add RPM coverage when that release actually happens, not before.
-- Container images aren't tested here yet either, but the container image is ready for release — container testing should be considered/added as this repo's next scope expansion, separate from the binary suite.
-
-Don't assume "binary only" rules out RPM/container work forever when scoping new issues — check whether the release situation has moved on.
+**Scope:** binary artifacts and container image. RPM packaging is not yet tested — add coverage when Red Hat starts releasing RPMs.
 
 The binaries under test are extracted from a Konflux-built container image on `quay.io` (see `image.env` for the current pinned `BINARY_IMAGE` digest). Each test script runs a category of checks against those extracted binaries and emits machine-parseable `PASS:` / `FAIL:` / `SKIP:` lines.
 
@@ -20,42 +16,56 @@ Seven platform targets matter for sign-off: `linux-amd64`, `linux-arm64`, `linux
 
 | Path | Purpose |
 |---|---|
-| `scripts/common.sh` | Shared shell library: platform detection, `pass`/`fail`/`skip` helpers, `HELM_BIN` resolution, isolated `HELM_*_HOME`, cluster detection. Sourced by every numbered script, never run directly. |
-| `scripts/01-validation.sh` … `scripts/09-distribution.sh` | The test suite itself, one category per script (see table below). |
+| `scripts/common.sh` | Shared shell library: platform detection, `pass`/`fail`/`skip` helpers, `HELM_BIN` resolution, isolated `HELM_*_HOME`, cluster detection. Sourced by every script, never run directly. |
+| `scripts/binary/non-cluster/` | Binary test scripts that run on every platform without a cluster (see table below). |
+| `scripts/binary/cluster/` | Binary test scripts that require a live Kubernetes cluster (self-skip when absent). |
+| `scripts/container/` | Container image checks — separate pipeline, different env vars (`BINARY_IMAGE`, `HELM_BIN`). |
 | `image.env` | Pins the `BINARY_IMAGE` digest that GitHub Actions CI (and local runs) test against — see below for why this still exists alongside Konflux. |
-| `.github/workflows/test-binary.yml` | GitHub Actions CI: extracts binaries from the image pinned in `image.env`, then runs all nine scripts across a platform matrix, including real `kind` clusters on Linux for the cluster-based scripts. |
-| `.tekton/helm-prerelease-tests-pipeline.yaml` | Konflux release-gate pipeline. Clones this repo, extracts binaries from the `SNAPSHOT` under release (Konflux injects this directly, not via `image.env`), and runs all nine scripts — but only for `linux-amd64`, and without a real cluster. |
+| `.github/workflows/test-binary.yml` | GitHub Actions CI: extracts binaries from the image in `image.env`, runs non-cluster scripts on all platforms and cluster scripts on Linux (with a real `kind` cluster). |
+| `.tekton/helm-prerelease-tests-pipeline.yaml` | Konflux binary test pipeline. Extracts binaries from the `SNAPSHOT`, runs `scripts/binary/non-cluster/` only — no cluster available in the Konflux runner. |
+| `.tekton/helm-container-tests-pipeline.yaml` | Konflux container test pipeline. Inspects the `SNAPSHOT` image labels and entrypoint binary. |
 | `.fullsend/config.yaml`, `.github/workflows/fullsend.yaml`, `.github/workflows/prioritize.yml` | fullsend automation wiring — see below. |
 
-`linux-ppc64le` / `linux-s390x` have no automated coverage in this repo today (no GitHub Actions runner, not in the Tekton pipeline) — they're tested manually, outside this repo's CI.
+`linux-ppc64le` / `linux-s390x` have no automated coverage in this repo today — they're tested manually, outside CI (see HELM-849 for Testing Farm investigation).
 
-**Why both `image.env` and `.tekton/` exist:** `image.env` predates the Konflux pipeline — it was how the binary digest got into the test run before `.tekton/helm-prerelease-tests-pipeline.yaml` existed. Once the Tekton pipeline was added, Konflux started injecting the built `SNAPSHOT` directly, making `image.env` redundant for that path. It's still here and still updated by hand (a human pastes in the new digest after a Konflux build) because **Konflux's pipeline doesn't currently run cluster-based tests**, and GitHub Actions' `kind`-backed runners do. So GitHub Actions + `image.env` was deliberately kept running as the real coverage for `05-functionality-cluster.sh`, `06-oci.sh`, and `08-v4-features-cluster.sh` — it is not a leftover to clean up.
+**Why both `image.env` and `.tekton/` exist:** `image.env` predates the Konflux pipeline. Once Konflux started injecting the `SNAPSHOT` directly, `image.env` became redundant for that path. It's still here because **Konflux's pipeline doesn't run cluster-based tests**, and GitHub Actions' `kind`-backed runners do. `image.env` is what keeps GHA running the cluster suite — it is not a leftover to clean up.
 
 ## Test categories
 
-| Script | Category | Needs a live cluster? |
-|---|---|---|
-| `01-validation.sh` | Checksums, file type, arch match, permissions, size | no |
-| `02-smoke.sh` | Version string, help, env output | no |
-| `03-dependencies.sh` | Static linking verification (`ldd`/`otool`/Windows equivalent) | no |
-| `04-functionality-offline.sh` | create, lint, template, package, show, pull, repo ops, plugins | no |
-| `05-functionality-cluster.sh` | install, status, upgrade, rollback, uninstall | yes |
-| `06-oci.sh` | OCI push (to `ttl.sh`), install from OCI, install by digest — push works offline, install needs a cluster | partial |
-| `07-v4-features-offline.sh` | v4-specific feature tests that don't need a cluster | no |
-| `08-v4-features-cluster.sh` | v4-specific feature tests that do need a cluster | yes |
-| `09-distribution.sh` | Archive extraction: `.tar.gz`, `.zip` | no |
+**`scripts/binary/non-cluster/`** — no cluster required, run on all platforms:
 
-Add new test cases inside the matching numbered script, following the existing `pass "name"` / `fail "name" "detail"` / `skip "name" "reason"` pattern from `common.sh`. A genuinely new *category* is rare — prefer extending an existing script over adding a `10-*.sh`, and if you do add one:
+| Script | Category |
+|---|---|
+| `01-validation.sh` | Checksums, file type, arch match, permissions, size |
+| `02-smoke.sh` | Version string, help, env output |
+| `03-dependencies.sh` | Static linking verification (`ldd`/`otool`/Windows equivalent) |
+| `04-functionality.sh` | create, lint, template, package, show, pull, repo ops, plugins |
+| `05-v4-features.sh` | v4-specific feature tests that don't need a cluster |
+| `06-distribution.sh` | Archive extraction: `.tar.gz`, `.zip` |
 
-1. Wire it into both `.github/workflows/test-binary.yml` and `.tekton/helm-prerelease-tests-pipeline.yaml` so it isn't silently skipped by one of the two runners. **Agents cannot do this step** (workflow files are off-limits; Tekton files are sensitive — see above). The agent must include a clearly-labeled "Human action required — CI wiring" section in the PR description listing the exact additions needed in each file, and must apply the `needs-human` label. The PR is not complete until a human completes the wiring.
-2. Consider opening a companion issue titled "Wire `<NN>-<name>.sh` into CI" so the wiring work is tracked independently and survives if the PR is closed or rebased.
+**`scripts/binary/cluster/`** — require a live Kubernetes cluster (self-skip when absent):
+
+| Script | Category |
+|---|---|
+| `01-functionality.sh` | install, status, upgrade, rollback, uninstall |
+| `02-oci.sh` | OCI push (to `ttl.sh`), install from OCI, install by digest |
+| `03-v4-features.sh` | v4-specific feature tests that require a cluster |
+
+**`scripts/container/`** — container image checks (separate Tekton pipeline, not binary tests):
+
+| Script | What it checks |
+|---|---|
+| `01-image-checks.sh` | Image labels (`name`, `version`, `release`, stream `cpe`), entrypoint binary presence, `helm version` output |
+| `02-non-cluster-suite.sh` | Runs `scripts/binary/non-cluster/` against the container's `/usr/local/bin/helm` — non-cluster only; cluster-based container tests are a separate future effort |
+
+Add new test cases inside the matching script, following the existing `pass "name"` / `fail "name" "detail"` / `skip "name" "reason"` pattern from `common.sh`. A genuinely new *category* in `binary/` is rare — prefer extending an existing script. If you do add one, place it in the correct subfolder (`non-cluster/` or `cluster/`) and wire it into both `.github/workflows/test-binary.yml` and the matching `.tekton/` pipeline. Workflow files are off-limits to fullsend agents — include a "Human action required — CI wiring" note in the PR description.
 
 ## Running tests locally
 
 ```shell
 export BINARY_IMAGE="quay.io/redhat-user-workloads/helm-cli-tenant/helm-cli@sha256:<image-sha>"
 source scripts/common.sh
-./scripts/01-validation.sh
+./scripts/binary/non-cluster/01-validation.sh
 ```
 
 Set `VERBOSE=1` to see the underlying commands and their output. `HELM_PLATFORM` overrides platform autodetection (useful for cross-checking a script against a platform you're not currently on); `HELM_BIN` overrides the binary path.

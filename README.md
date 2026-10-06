@@ -21,24 +21,49 @@ Shell test scripts verify that downstream Red Hat helm v4 binaries are correctly
 
 ## Test categories
 
-| Script | Category | Cluster required |
-|---|---|---|
-| 01-validation.sh | Checksums, file type, arch, permissions, size | no |
-| 02-smoke.sh | Version, help, env | no |
-| 03-dependencies.sh | Static linking verification | no |
-| 04-functionality-offline.sh | Create, lint, template, package, show, pull, repo ops | no |
-| 05-functionality-cluster.sh | Install, upgrade, rollback, uninstall | yes |
-| 06-oci.sh | OCI push, install, install by digest | yes |
-| 07-v4-features-offline.sh | v4-specific offline feature tests | no |
-| 08-v4-features-cluster.sh | v4-specific cluster feature tests | yes |
-| 09-distribution.sh | Archive extraction (.tar.gz, .zip) | no |
+`scripts/binary/non-cluster/` — run on all platforms, no cluster needed:
+
+| Script | Category |
+|---|---|
+| 01-validation.sh | Checksums, file type, arch, permissions, size |
+| 02-smoke.sh | Version, help, env |
+| 03-dependencies.sh | Static linking verification |
+| 04-functionality.sh | Create, lint, template, package, show, pull, repo ops |
+| 05-v4-features.sh | v4-specific offline feature tests |
+| 06-distribution.sh | Archive extraction (.tar.gz, .zip) |
+
+`scripts/binary/cluster/` — require a live Kubernetes cluster (self-skip when absent):
+
+| Script | Category |
+|---|---|
+| 01-functionality.sh | Install, upgrade, rollback, uninstall |
+| 02-oci.sh | OCI push, install, install by digest |
+| 03-v4-features.sh | v4-specific cluster feature tests |
+
+`scripts/container/` — container image checks (separate pipeline):
+
+| Script | What it checks |
+|---|---|
+| 01-image-checks.sh | Image labels (`name`, `version`, `release`, stream `cpe`), entrypoint binary presence, `helm version` |
+| 02-non-cluster-suite.sh | Runs the non-cluster binary suite against `/usr/local/bin/helm` from the container (cluster tests for the container are a separate future effort) |
 
 ## Running locally
+
+**Binary scripts:**
 
 ```shell
 export BINARY_IMAGE="quay.io/redhat-user-workloads/helm-cli-tenant/helm-cli@sha256:<image-sha>"
 source scripts/common.sh
-./scripts/01-validation.sh
+./scripts/binary/non-cluster/01-validation.sh
+```
+
+**Container scripts** (requires `skopeo` on PATH):
+
+```shell
+export BINARY_IMAGE="quay.io/redhat-user-workloads/helm-cli-tenant/helm-cli@sha256:<image-sha>"
+export HELM_BIN="/path/to/extracted/helm"   # extract from /usr/local/bin/ of the image first
+./scripts/container/01-image-checks.sh
+./scripts/container/02-non-cluster-suite.sh
 ```
 
 ## Binary source

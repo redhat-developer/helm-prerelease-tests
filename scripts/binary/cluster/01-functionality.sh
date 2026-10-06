@@ -3,10 +3,10 @@
 # Requires a live Kubernetes cluster (kind, minikube, etc.).
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../common.sh"
 
 echo ""
-echo "=== 05: FUNCTIONALITY (CLUSTER) ==="
+echo "=== 01: FUNCTIONALITY (CLUSTER) ==="
 echo ""
 
 if ! has_cluster; then

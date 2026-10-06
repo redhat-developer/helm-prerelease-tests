@@ -2,7 +2,7 @@
 # Smoke tests: version, Go version, help output, environment info.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../common.sh"
 
 echo ""
 echo "=== 02: SMOKE TESTS ==="

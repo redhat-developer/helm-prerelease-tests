@@ -3,10 +3,10 @@
 # Push works without a cluster. Install requires a live cluster.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../common.sh"
 
 echo ""
-echo "=== 06: OCI OPERATIONS ==="
+echo "=== 02: OCI OPERATIONS (CLUSTER) ==="
 echo ""
 
 CHART_NAME="oci-test-chart"

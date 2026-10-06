@@ -2,7 +2,7 @@
 # Validation tests: checksums, file type, architecture match, binary size.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../common.sh"
 
 echo ""
 echo "=== 01: VALIDATION ==="

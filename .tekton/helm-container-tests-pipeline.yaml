@@ -2,14 +2,14 @@
 apiVersion: tekton.dev/v1
 kind: Pipeline
 metadata:
-  name: helm-prerelease-tests
+  name: helm-container-tests
 spec:
   params:
     - name: SNAPSHOT
       type: string
       description: Konflux application snapshot (auto-injected)
   tasks:
-    - name: prerelease-tests
+    - name: container-tests
       params:
         - name: SNAPSHOT
           value: $(params.SNAPSHOT)
@@ -32,12 +32,15 @@ spec:
             script: |
               #!/usr/bin/env bash
               set -euo pipefail
-              microdnf install -y git-core tar gzip
+              microdnf install -y git-core --nodocs --setopt=install_weak_deps=0 2>/dev/null
               git clone --depth 1 https://github.com/redhat-developer/helm-prerelease-tests.git /shared/tests
-              echo "Cloned test repo at $(cd /shared/tests && git rev-parse --short HEAD)"
+              echo "Cloned at $(cd /shared/tests && git rev-parse --short HEAD)"
 
-          - name: extract-binaries
+          - name: extract-image
             image: registry.redhat.io/openshift4/ose-cli-rhel9:v4.19
+            env:
+              - name: SNAPSHOT
+                value: $(params.SNAPSHOT)
             volumeMounts:
               - name: shared
                 mountPath: /shared
@@ -46,35 +49,29 @@ spec:
               set -euo pipefail
 
               IMAGE=$(python3 -c "
-              import json, sys
-              snap = json.loads(sys.argv[1])
+              import json, os, sys
+              snap = json.loads(os.environ['SNAPSHOT'])
               for c in snap.get('components', []):
                   if c.get('name') == 'helm-cli':
                       print(c['containerImage'])
                       sys.exit(0)
               print('ERROR: helm-cli component not found', file=sys.stderr)
-              print(json.dumps(snap, indent=2), file=sys.stderr)
               sys.exit(1)
-              " '$(params.SNAPSHOT)')
+              ")
 
-              if [[ -z "$IMAGE" ]]; then
-                exit 1
-              fi
-
+              echo "$IMAGE" > /shared/image.txt
               echo "Extracting from: ${IMAGE}"
-              mkdir -p /shared/binaries
 
+              mkdir -p /shared/layer
               oc image extract "$IMAGE" \
-                --path /releases/:/shared/binaries/ \
+                --path /usr/local/bin/:/shared/layer/ \
                 --filter-by-os linux/amd64
 
-              echo ""
-              echo "Extracted files:"
-              ls -lh /shared/binaries/
+              echo "Extracted /usr/local/bin/:"
+              ls -lh /shared/layer/
 
-          - name: run-tests
-            image: registry.access.redhat.com/ubi9/ubi:latest
-            workingDir: /shared/binaries
+          - name: run-container-tests
+            image: registry.access.redhat.com/ubi9/ubi-minimal:latest
             volumeMounts:
               - name: shared
                 mountPath: /shared
@@ -87,17 +84,21 @@ spec:
               #!/usr/bin/env bash
               set -uo pipefail
 
-              SCRIPTS="/shared/tests/scripts/binary/non-cluster"
+              microdnf install -y skopeo python3 --nodocs --setopt=install_weak_deps=0 2>/dev/null
+
+              export BINARY_IMAGE=$(cat /shared/image.txt)
+              export HELM_BIN=/shared/layer/helm
+
               RESULTS_DIR="/shared/test-results"
               mkdir -p "$RESULTS_DIR"
 
+              SCRIPTS="/shared/tests/scripts/container"
               TOTAL_PASS=0
               TOTAL_FAIL=0
               TOTAL_SKIP=0
               FAILED_SUITES=()
 
               for script in "$SCRIPTS"/*.sh; do
-
                 suite="$(basename "$script" .sh)"
                 echo ""
                 echo "================================================================"
@@ -107,7 +108,7 @@ spec:
                 bash "$script" 2>&1 | tee "$RESULTS_DIR/${suite}.log"
                 rc=${PIPESTATUS[0]}
 
-                totals=$(grep -E '^TOTAL:' "$RESULTS_DIR/${suite}.log" || true)
+                totals=$(grep -E '^TOTAL:' "$RESULTS_DIR/${suite}.log" | tail -1 || true)
                 if [[ -n "$totals" ]]; then
                   p=$(echo "$totals" | grep -oP 'PASS: \K[0-9]+' || echo 0)
                   f=$(echo "$totals" | grep -oP 'FAIL: \K[0-9]+' || echo 0)
@@ -116,38 +117,25 @@ spec:
                   TOTAL_FAIL=$((TOTAL_FAIL + f))
                   TOTAL_SKIP=$((TOTAL_SKIP + s))
                 fi
-
-                if [[ $rc -ne 0 ]]; then
-                  FAILED_SUITES+=("$suite")
-                fi
+                [[ $rc -ne 0 ]] && FAILED_SUITES+=("$suite")
               done
 
-              echo ""
-              echo "================================================================"
-              echo "OVERALL RESULTS"
-              echo "================================================================"
-              echo "PASS: ${TOTAL_PASS}  FAIL: ${TOTAL_FAIL}  SKIP: ${TOTAL_SKIP}"
-              if [[ ${#FAILED_SUITES[@]} -gt 0 ]]; then
-                echo "FAILED SUITES:"
-                for s in "${FAILED_SUITES[@]}"; do
-                  echo "  - ${s}"
-                done
-              fi
+              PASS=$TOTAL_PASS
+              FAIL=$TOTAL_FAIL
+              SKIP=$TOTAL_SKIP
 
-              if [[ $TOTAL_FAIL -eq 0 ]]; then
+              if [[ $FAIL -eq 0 ]]; then
                 RESULT="SUCCESS"
-                NOTE="All suites passed (${TOTAL_PASS} tests, ${TOTAL_SKIP} skipped)"
+                NOTE="All container checks passed (${PASS} checks, ${SKIP} skipped)"
               else
-                NOTE="Failed suites: $(IFS=', '; echo "${FAILED_SUITES[*]}")"
                 RESULT="FAILURE"
+                NOTE="Container checks failed: ${FAIL} failure(s) in: $(IFS=', '; echo "${FAILED_SUITES[*]}")"
               fi
 
               TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
               printf '{"result":"%s","timestamp":"%s","successes":%d,"failures":%d,"warnings":0,"note":"%s"}' \
-                "$RESULT" "$TIMESTAMP" "$TOTAL_PASS" "$TOTAL_FAIL" "$NOTE" \
+                "$RESULT" "$TIMESTAMP" "${PASS:-0}" "${FAIL:-0}" "$NOTE" \
                 > "$(results.TEST_OUTPUT.path)"
 
-              echo ""
               echo "TEST_OUTPUT: ${RESULT}"
-
               [[ $TOTAL_FAIL -eq 0 ]]

@@ -2,10 +2,10 @@
 # Distribution tests: extract .tar.gz archives for all platforms.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-source "${SCRIPT_DIR}/common.sh"
+source "${SCRIPT_DIR}/../../common.sh"
 
 echo ""
-echo "=== 09: DISTRIBUTION ==="
+echo "=== 06: DISTRIBUTION ==="
 echo ""
 
 # ---------------------------------------------------------------------------

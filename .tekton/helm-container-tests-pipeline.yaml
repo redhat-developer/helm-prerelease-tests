@@ -1,0 +1,141 @@
+---
+apiVersion: tekton.dev/v1
+kind: Pipeline
+metadata:
+  name: helm-container-tests
+spec:
+  params:
+    - name: SNAPSHOT
+      type: string
+      description: Konflux application snapshot (auto-injected)
+  tasks:
+    - name: container-tests
+      params:
+        - name: SNAPSHOT
+          value: $(params.SNAPSHOT)
+      taskSpec:
+        params:
+          - name: SNAPSHOT
+            type: string
+        results:
+          - name: TEST_OUTPUT
+            description: Test results in Konflux format
+        volumes:
+          - name: shared
+            emptyDir: {}
+        steps:
+          - name: clone-test-repo
+            image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+            volumeMounts:
+              - name: shared
+                mountPath: /shared
+            script: |
+              #!/usr/bin/env bash
+              set -euo pipefail
+              microdnf install -y git-core --nodocs --setopt=install_weak_deps=0 2>/dev/null
+              git clone --depth 1 https://github.com/redhat-developer/helm-prerelease-tests.git /shared/tests
+              echo "Cloned at $(cd /shared/tests && git rev-parse --short HEAD)"
+
+          - name: extract-image
+            image: registry.redhat.io/openshift4/ose-cli-rhel9:v4.19
+            env:
+              - name: SNAPSHOT
+                value: $(params.SNAPSHOT)
+            volumeMounts:
+              - name: shared
+                mountPath: /shared
+            script: |
+              #!/usr/bin/env bash
+              set -euo pipefail
+
+              IMAGE=$(python3 -c "
+              import json, os, sys
+              snap = json.loads(os.environ['SNAPSHOT'])
+              for c in snap.get('components', []):
+                  if c.get('name') == 'helm-cli':
+                      print(c['containerImage'])
+                      sys.exit(0)
+              print('ERROR: helm-cli component not found', file=sys.stderr)
+              sys.exit(1)
+              ")
+
+              echo "$IMAGE" > /shared/image.txt
+              echo "Extracting from: ${IMAGE}"
+
+              mkdir -p /shared/layer
+              oc image extract "$IMAGE" \
+                --path /usr/local/bin/:/shared/layer/ \
+                --filter-by-os linux/amd64
+
+              echo "Extracted /usr/local/bin/:"
+              ls -lh /shared/layer/
+
+          - name: run-container-tests
+            image: registry.access.redhat.com/ubi9/ubi-minimal:latest
+            volumeMounts:
+              - name: shared
+                mountPath: /shared
+            env:
+              - name: HELM_PLATFORM
+                value: linux-amd64
+              - name: VERBOSE
+                value: "1"
+            script: |
+              #!/usr/bin/env bash
+              set -uo pipefail
+
+              microdnf install -y skopeo python3 --nodocs --setopt=install_weak_deps=0 2>/dev/null
+
+              export BINARY_IMAGE=$(cat /shared/image.txt)
+              export HELM_BIN=/shared/layer/helm
+
+              RESULTS_DIR="/shared/test-results"
+              mkdir -p "$RESULTS_DIR"
+
+              SCRIPTS="/shared/tests/scripts/container"
+              TOTAL_PASS=0
+              TOTAL_FAIL=0
+              TOTAL_SKIP=0
+              FAILED_SUITES=()
+
+              for script in "$SCRIPTS"/*.sh; do
+                suite="$(basename "$script" .sh)"
+                echo ""
+                echo "================================================================"
+                echo "Running: ${suite}"
+                echo "================================================================"
+
+                bash "$script" 2>&1 | tee "$RESULTS_DIR/${suite}.log"
+                rc=${PIPESTATUS[0]}
+
+                totals=$(grep -E '^TOTAL:' "$RESULTS_DIR/${suite}.log" || true)
+                if [[ -n "$totals" ]]; then
+                  p=$(echo "$totals" | grep -oP 'PASS: \K[0-9]+' || echo 0)
+                  f=$(echo "$totals" | grep -oP 'FAIL: \K[0-9]+' || echo 0)
+                  s=$(echo "$totals" | grep -oP 'SKIP: \K[0-9]+' || echo 0)
+                  TOTAL_PASS=$((TOTAL_PASS + p))
+                  TOTAL_FAIL=$((TOTAL_FAIL + f))
+                  TOTAL_SKIP=$((TOTAL_SKIP + s))
+                fi
+                [[ $rc -ne 0 ]] && FAILED_SUITES+=("$suite")
+              done
+
+              PASS=$TOTAL_PASS
+              FAIL=$TOTAL_FAIL
+              SKIP=$TOTAL_SKIP
+
+              if [[ $FAIL -eq 0 ]]; then
+                RESULT="SUCCESS"
+                NOTE="All container checks passed (${PASS} checks, ${SKIP} skipped)"
+              else
+                RESULT="FAILURE"
+                NOTE="Container checks failed: ${FAIL} failure(s) in: $(IFS=', '; echo "${FAILED_SUITES[*]}")"
+              fi
+
+              TIMESTAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+              printf '{"result":"%s","timestamp":"%s","successes":%d,"failures":%d,"warnings":0,"note":"%s"}' \
+                "$RESULT" "$TIMESTAMP" "${PASS:-0}" "${FAIL:-0}" "$NOTE" \
+                > "$(results.TEST_OUTPUT.path)"
+
+              echo "TEST_OUTPUT: ${RESULT}"
+              [[ $rc -eq 0 ]]

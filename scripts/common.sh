@@ -90,7 +90,7 @@ skip_all() {
     echo "SKIP ALL: ${reason}"
 }
 
-# NOTE: summary() does not call exit — callers must add exit 1 themselves.
+# summary() does not call exit — callers must add "exit 1" themselves.
 summary() {
     local total=$((PASS_COUNT + FAIL_COUNT + SKIP_COUNT))
     echo ""

@@ -49,10 +49,21 @@ Shell test scripts verify that downstream Red Hat helm v4 binaries are correctly
 
 ## Running locally
 
+**Binary scripts:**
+
 ```shell
 export BINARY_IMAGE="quay.io/redhat-user-workloads/helm-cli-tenant/helm-cli@sha256:<image-sha>"
 source scripts/common.sh
 ./scripts/binary/non-cluster/01-validation.sh
+```
+
+**Container scripts** (requires `skopeo` on PATH):
+
+```shell
+export BINARY_IMAGE="quay.io/redhat-user-workloads/helm-cli-tenant/helm-cli@sha256:<image-sha>"
+export HELM_BIN="/path/to/extracted/helm"   # extract from /usr/local/bin/ of the image first
+./scripts/container/01-image-checks.sh
+./scripts/container/02-non-cluster-suite.sh
 ```
 
 ## Binary source

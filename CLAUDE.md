@@ -82,7 +82,7 @@ When writing or triaging an issue meant for the `code` agent, be explicit that w
 
 ### Treat `.tekton/*` as sensitive too
 
-`.tekton/helm-prerelease-tests-pipeline.yaml` (the release/Konflux pipeline definition) isn't blocked by GitHub the way workflow files are, but it's just as high-blast-radius if an agent gets it wrong. Scope issues to avoid it unless a human is going to review that specific diff closely.
+Any file under `.tekton/` (currently `helm-prerelease-tests-pipeline.yaml` and `helm-container-tests-pipeline.yaml`) isn't blocked by GitHub the way workflow files are, but it's just as high-blast-radius if an agent gets it wrong. Scope issues to avoid it unless a human is going to review that specific diff closely.
 
 ### Treat `*-plan.md` files as human-managed too
 

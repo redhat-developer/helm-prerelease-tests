@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../../common.sh"
 
 echo ""
-echo "=== 07: V4 FEATURES (OFFLINE) ==="
+echo "=== 05: V4 FEATURES ==="
 echo ""
 
 # ---------------------------------------------------------------------------

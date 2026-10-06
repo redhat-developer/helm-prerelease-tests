@@ -108,7 +108,7 @@ spec:
                 bash "$script" 2>&1 | tee "$RESULTS_DIR/${suite}.log"
                 rc=${PIPESTATUS[0]}
 
-                totals=$(grep -E '^TOTAL:' "$RESULTS_DIR/${suite}.log" || true)
+                totals=$(grep -E '^TOTAL:' "$RESULTS_DIR/${suite}.log" | tail -1 || true)
                 if [[ -n "$totals" ]]; then
                   p=$(echo "$totals" | grep -oP 'PASS: \K[0-9]+' || echo 0)
                   f=$(echo "$totals" | grep -oP 'FAIL: \K[0-9]+' || echo 0)
@@ -138,4 +138,4 @@ spec:
                 > "$(results.TEST_OUTPUT.path)"
 
               echo "TEST_OUTPUT: ${RESULT}"
-              [[ $rc -eq 0 ]]
+              [[ $TOTAL_FAIL -eq 0 ]]

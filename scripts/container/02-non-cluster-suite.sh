@@ -23,7 +23,7 @@ fi
 
 chmod +x "$HELM_BIN"
 
-echo "=== 02-binary-suite: non-cluster suite against container entrypoint ==="
+echo "=== 02: NON-CLUSTER BINARY SUITE (CONTAINER ENTRYPOINT) ==="
 echo "HELM_BIN: ${HELM_BIN}"
 echo ""
 
@@ -32,8 +32,13 @@ TOTAL_FAIL=0
 TOTAL_SKIP=0
 FAILED_SUITES=()
 
+# 01-validation and 06-distribution require sha256sum.txt from the release
+# archive, which is not present in the container context — skip them here.
 for script in "$NON_CLUSTER"/*.sh; do
     suite="$(basename "$script" .sh)"
+    case "$suite" in
+        01-validation|06-distribution) continue ;;
+    esac
     echo "================================================================"
     echo "Running: ${suite}"
     echo "================================================================"

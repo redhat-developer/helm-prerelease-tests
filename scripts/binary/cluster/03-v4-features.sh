@@ -5,7 +5,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../../common.sh"
 
 echo ""
-echo "=== 08: V4 FEATURES (CLUSTER) ==="
+echo "=== 03: V4 FEATURES (CLUSTER) ==="
 echo ""
 
 if ! has_cluster; then

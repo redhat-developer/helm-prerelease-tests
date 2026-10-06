@@ -12,7 +12,7 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=scripts/common.sh
 source "$SCRIPT_DIR/../common.sh"
 
-echo "=== 10-container: image label and entrypoint checks ==="
+echo "=== 01: IMAGE CHECKS ==="
 echo "BINARY_IMAGE: ${BINARY_IMAGE:-<unset>}"
 echo "HELM_BIN:     ${HELM_BIN:-<unset>}"
 echo ""
@@ -37,6 +37,7 @@ echo "--- label checks ---"
 INSPECT_JSON=$(skopeo inspect "docker://${BINARY_IMAGE}" 2>&1) || {
     fail "skopeo inspect" "skopeo exited non-zero: ${INSPECT_JSON}"
     summary
+    exit 1
 }
 
 NAME=$(echo    "$INSPECT_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('Labels',{}).get('name',''))")
@@ -74,6 +75,7 @@ echo "--- entrypoint binary checks ---"
 if [[ ! -f "$HELM_BIN" ]]; then
     fail "helm binary present" "${HELM_BIN} not found"
     summary
+    exit 1
 fi
 pass "helm binary present (${HELM_BIN})"
 

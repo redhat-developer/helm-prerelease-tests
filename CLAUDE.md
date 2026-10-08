@@ -84,6 +84,10 @@ When writing or triaging an issue meant for the `code` agent, be explicit that w
 
 Any file under `.tekton/` (currently `helm-prerelease-tests-pipeline.yaml` and `helm-container-tests-pipeline.yaml`) isn't blocked by GitHub the way workflow files are, but it's just as high-blast-radius if an agent gets it wrong. Scope issues to avoid it unless a human is going to review that specific diff closely.
 
+### Treat `scripts/common.sh` as foundational
+
+`scripts/common.sh` is sourced by every test script on every platform. A regression in its `pass`/`fail`/`skip` helpers, platform detection, or environment isolation silently corrupts the entire test matrix — wider blast radius than `.tekton/` changes. Treat it with the same caution as `.tekton/` files: do not merge changes to `scripts/common.sh` without first waiting for the automated review agent verdict and all CI platform jobs to reach a terminal state. If CI is still pending or the review agent has not posted findings, hold the merge.
+
 ### Treat `*-plan.md` files as human-managed too
 
 `*-plan.md` and `*-integration-plan.md` files document human decisions about future work. Do not modify them unless the issue explicitly asks for it. If a glob pattern or file reference in such a document appears to be stale relative to your changes, note it in the PR description rather than editing the document.

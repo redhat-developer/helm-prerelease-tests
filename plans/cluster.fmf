@@ -1,0 +1,129 @@
+# Runs scripts/binary/cluster/ against a single-node kind cluster on the guest.
+#
+# x86_64 and aarch64 ONLY. kindest/node is published for amd64 and arm64 only,
+# so this plan must not be referenced by a ppc64le or s390x
+# IntegrationTestScenario. The guard below fails loudly rather than skipping —
+# a misconfigured ITS must not produce a green run that tested nothing.
+#
+# Driven by Testing Farm via the shared Konflux pipeline, same as
+# plans/non-cluster.fmf. The plan contains no test logic.
+
+summary: Helm CLI binary tests that require a live Kubernetes cluster
+description: |
+    Brings up a single-node kind cluster (podman provider) on the guest, then
+    runs every suite under scripts/binary/cluster/ — install, status, upgrade,
+    rollback, uninstall, OCI operations and the v4 feature set.
+
+environment:
+    VERBOSE: "1"
+    BINARIES_DIR: /opt/helm-binaries
+    KIND_VERSION: v0.27.0
+    KUBECTL_VERSION: v1.32.3
+    KIND_EXPERIMENTAL_PROVIDER: podman
+    KUBECONFIG: /root/.kube/config
+
+prepare:
+  - name: guard-architecture
+    how: shell
+    script: |
+        set -euo pipefail
+        case "$(uname -m)" in
+            x86_64|aarch64) ;;
+            *)
+                echo "FATAL: the cluster plan does not support $(uname -m)."
+                echo "kindest/node publishes amd64 and arm64 images only."
+                exit 1
+                ;;
+        esac
+
+  - name: packages
+    how: install
+    package:
+      - podman
+      - tar
+      - gzip
+
+  - name: extract-binaries
+    how: shell
+    script: |
+        set -euo pipefail
+        : "${IMAGE_URL:?IMAGE_URL is injected by the Testing Farm Konflux pipeline}"
+
+        mkdir -p "$BINARIES_DIR"
+        podman pull "$IMAGE_URL"
+        cid="$(podman create "$IMAGE_URL")"
+        podman cp "${cid}:/releases/." "$BINARIES_DIR/"
+        podman rm "$cid"
+        chmod +x "$BINARIES_DIR"/helm-linux-* || true
+
+  - name: install-kind
+    how: shell
+    script: |
+        set -euo pipefail
+        case "$(uname -m)" in
+            x86_64)  kindarch=amd64 ;;
+            aarch64) kindarch=arm64 ;;
+        esac
+
+        curl -fsSLo /usr/local/bin/kind \
+            "https://kind.sigs.k8s.io/dl/${KIND_VERSION}/kind-linux-${kindarch}"
+        curl -fsSLo /usr/local/bin/kubectl \
+            "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/${kindarch}/kubectl"
+        chmod +x /usr/local/bin/kind /usr/local/bin/kubectl
+
+        kind version
+        kubectl version --client
+
+  - name: create-cluster
+    how: shell
+    script: |
+        set -euo pipefail
+        mkdir -p "$(dirname "$KUBECONFIG")"
+        kind create cluster --name helm-prerelease --wait 180s
+        kubectl cluster-info
+        kubectl get nodes -o wide
+
+discover:
+    how: shell
+    tests:
+      - name: /cluster
+        summary: All cluster-dependent binary suites
+        duration: 20m
+        test: |
+            set -uo pipefail
+
+            case "$(uname -m)" in
+                x86_64)  goarch=amd64 ;;
+                aarch64) goarch=arm64 ;;
+            esac
+
+            export HELM_PLATFORM="linux-${goarch}"
+            cd "$BINARIES_DIR"
+
+            # fail fast if the cluster is not reachable — has_cluster() returning
+            # false must never read as a pass
+            if ! kubectl cluster-info >/dev/null 2>&1; then
+                echo "FATAL: no reachable cluster; cluster suites would silently skip"
+                exit 1
+            fi
+
+            failed=()
+            for script in "$TMT_TREE"/scripts/binary/cluster/*.sh; do
+                suite="$(basename "$script" .sh)"
+                echo "=== ${suite} ==="
+                bash "$script" || failed+=("$suite")
+            done
+
+            if [[ ${#failed[@]} -gt 0 ]]; then
+                echo "FAILED SUITES: ${failed[*]}"
+                exit 1
+            fi
+
+execute:
+    how: tmt
+
+finish:
+  - name: teardown
+    how: shell
+    script: |
+        kind delete cluster --name helm-prerelease || true

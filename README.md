@@ -66,6 +66,18 @@ export HELM_BIN="/path/to/extracted/helm"   # extract from /usr/local/bin/ of th
 ./scripts/container/02-non-cluster-suite.sh
 ```
 
+The image is a multi-arch manifest, so on a non-linux/amd64 host (e.g. an Apple Silicon
+Mac) a bare `skopeo inspect` fails with "no image found in manifest list". Run the
+scripts inside a `linux/amd64` container to match the pipeline environment:
+
+```shell
+podman run --rm --platform linux/amd64 -v "$(pwd)":/tests:ro \
+  -e BINARY_IMAGE -e HELM_BIN=/tmp/helm \
+  registry.access.redhat.com/ubi9/ubi-minimal:latest bash -c '
+    microdnf install -y skopeo python3 --nodocs --setopt=install_weak_deps=0
+    bash /tests/scripts/container/01-image-checks.sh'
+```
+
 ## Binary source
 
 Binaries are extracted from a Konflux-built container image on quay.io. The image SHA is passed via `BINARY_IMAGE` environment variable or `workflow_dispatch` input.

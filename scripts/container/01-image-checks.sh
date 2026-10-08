@@ -47,17 +47,23 @@ CPE=$(echo     "$INSPECT_JSON" | python3 -c "import json,sys; d=json.load(sys.st
 
 log_verbose "name=${NAME}  version=${VERSION}  release=${RELEASE}  cpe=${CPE}"
 
-[[ "$NAME" == "helm-cli/helm-cli-rhel9" ]] \
-    && pass "label:name" \
-    || fail "label:name" "expected 'helm-cli/helm-cli-rhel9', got '${NAME}'"
+if [[ "$NAME" == "helm-cli/helm-cli-rhel9" ]]; then
+    pass "label:name"
+else
+    fail "label:name" "expected 'helm-cli/helm-cli-rhel9', got '${NAME}'"
+fi
 
-[[ -n "$VERSION" ]] \
-    && pass "label:version (${VERSION})" \
-    || fail "label:version" "missing or empty"
+if [[ -n "$VERSION" ]]; then
+    pass "label:version (${VERSION})"
+else
+    fail "label:version" "missing or empty"
+fi
 
-[[ -n "$RELEASE" ]] \
-    && pass "label:release (${RELEASE})" \
-    || fail "label:release" "missing or empty"
+if [[ -n "$RELEASE" ]]; then
+    pass "label:release (${RELEASE})"
+else
+    fail "label:release" "missing or empty"
+fi
 
 # CPE must be the stream CPE (major.minor, not patch): cpe:/a:redhat:helm_cli:X.Y::el9
 if echo "$CPE" | grep -qE '^cpe:/a:redhat:helm_cli:[0-9]+\.[0-9]+::el9$'; then

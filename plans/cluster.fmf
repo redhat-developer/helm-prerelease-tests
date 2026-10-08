@@ -63,6 +63,7 @@ prepare:
         case "$(uname -m)" in
             x86_64)  kindarch=amd64 ;;
             aarch64) kindarch=arm64 ;;
+            *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
         esac
 
         curl -fsSLo /usr/local/bin/kind \
@@ -95,6 +96,7 @@ discover:
             case "$(uname -m)" in
                 x86_64)  goarch=amd64 ;;
                 aarch64) goarch=arm64 ;;
+                *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
             esac
 
             export HELM_PLATFORM="linux-${goarch}"

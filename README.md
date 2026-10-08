@@ -8,16 +8,21 @@ Shell test scripts verify that downstream Red Hat helm v4 binaries are correctly
 
 ## Platforms
 
-| Platform | CI (GitHub Actions) | Manual |
-|---|---|---|
-| linux-amd64 | yes | — |
-| linux-arm64 | yes | — |
-| linux-ppc64le | — | Testing Farms |
-| linux-s390x | — | Testing Farms |
-| darwin-amd64 | yes | — |
-| darwin-arm64 | yes | — |
-| win-amd64 | yes | — |
-| win-arm64 | yes | — |
+| Platform | CI (GitHub Actions) | Testing Farm (`plans/`) | Manual |
+|---|---|---|---|
+| linux-amd64 | yes | cluster | — |
+| linux-arm64 | yes | both | — |
+| linux-ppc64le | — | non-cluster | cluster suites |
+| linux-s390x | — | non-cluster | cluster suites |
+| darwin-amd64 | yes | — | — |
+| darwin-arm64 | yes | — | — |
+| win-amd64 | yes | — | — |
+| win-arm64 | yes | — | — |
+
+The Testing Farm column is pending — `plans/` exists here, but nothing runs until the
+IntegrationTestScenarios merge in `konflux-release-data` (HELM-849). Cluster suites stay
+manual on ppc64le/s390x: `kindest/node` publishes amd64 and arm64 images only, and no
+single-node Kubernetes distribution ships for those architectures.
 
 ## Test categories
 

@@ -1,0 +1,82 @@
+# Runs scripts/binary/non-cluster/ on x86_64, aarch64, ppc64le or s390x.
+#
+# Driven by Testing Farm via the shared Konflux pipeline
+# (gitlab.com/testing-farm/integrations-konflux). The pipeline parses the
+# Konflux SNAPSHOT and injects IMAGE_URL; the architecture comes from the
+# IntegrationTestScenario's ARCH param, so this one plan serves all four.
+#
+# The plan contains no test logic. Every assertion lives in scripts/.
+
+summary: Helm CLI binary tests that need no Kubernetes cluster
+description: |
+    Extracts the shipped binary from the helm-cli snapshot image and runs every
+    suite under scripts/binary/non-cluster/ using the binary matching the guest
+    architecture.
+
+environment:
+    VERBOSE: "1"
+    BINARIES_DIR: /opt/helm-binaries
+
+prepare:
+  - name: packages
+    how: install
+    package:
+      - podman
+      - tar
+      - gzip
+
+  - name: extract-binaries
+    how: shell
+    script: |
+        set -euo pipefail
+        : "${IMAGE_URL:?IMAGE_URL is injected by the Testing Farm Konflux pipeline}"
+
+        mkdir -p "$BINARIES_DIR"
+
+        # the snapshot manifest list carries linux/amd64, arm64, ppc64le and s390x,
+        # and each variant's /releases/ holds that variant's native binary, so a
+        # plain pull on the guest resolves to the right one. (the amd64 variant is
+        # the odd one out: it carries all eight shipped platform binaries, because
+        # it is the CDN publishing source.)
+        podman pull "$IMAGE_URL"
+        cid="$(podman create "$IMAGE_URL")"
+        podman cp "${cid}:/releases/." "$BINARIES_DIR/"
+        podman rm "$cid"
+
+        chmod +x "$BINARIES_DIR"/helm-linux-* || true
+        ls -lh "$BINARIES_DIR"
+
+discover:
+    how: shell
+    tests:
+      - name: /non-cluster
+        summary: All non-cluster binary suites
+        duration: 15m
+        test: |
+            set -uo pipefail
+
+            case "$(uname -m)" in
+                x86_64)  goarch=amd64   ;;
+                aarch64) goarch=arm64   ;;
+                ppc64le) goarch=ppc64le ;;
+                s390x)   goarch=s390x   ;;
+                *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
+            esac
+
+            export HELM_PLATFORM="linux-${goarch}"
+            cd "$BINARIES_DIR"
+
+            failed=()
+            for script in "$TMT_TREE"/scripts/binary/non-cluster/*.sh; do
+                suite="$(basename "$script" .sh)"
+                echo "=== ${suite} ==="
+                bash "$script" || failed+=("$suite")
+            done
+
+            if [[ ${#failed[@]} -gt 0 ]]; then
+                echo "FAILED SUITES: ${failed[*]}"
+                exit 1
+            fi
+
+execute:
+    how: tmt

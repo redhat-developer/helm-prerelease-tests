@@ -24,9 +24,22 @@ Seven platform targets matter for sign-off: `linux-amd64`, `linux-arm64`, `linux
 | `.github/workflows/test-binary.yml` | GitHub Actions CI: extracts binaries from the image in `image.env`, runs non-cluster scripts on all platforms and cluster scripts on Linux (with a real `kind` cluster). |
 | `.tekton/helm-prerelease-tests-pipeline.yaml` | Konflux binary test pipeline. Extracts binaries from the `SNAPSHOT`, runs `scripts/binary/non-cluster/` only — no cluster available in the Konflux runner. |
 | `.tekton/helm-container-tests-pipeline.yaml` | Konflux container test pipeline. Inspects the `SNAPSHOT` image labels and entrypoint binary. |
+| `.fmf/version` | Marks this repo as an fmf metadata tree root. Testing Farm finds no plans without it. Contents: `1`. |
+| `plans/non-cluster.fmf`, `plans/cluster.fmf` | tmt plans run by Testing Farm. Envelopes only — they extract the binary from `IMAGE_URL` and invoke the same `scripts/` suites every other runner uses. See below. |
 | `.fullsend/config.yaml`, `.github/workflows/fullsend.yaml`, `.github/workflows/prioritize.yml` | fullsend automation wiring — see below. |
 
-`linux-ppc64le` / `linux-s390x` have no automated coverage in this repo today — they're tested manually, outside CI (see HELM-849 for Testing Farm investigation).
+`linux-ppc64le` / `linux-s390x` have no automated coverage in this repo today — they're tested manually, outside CI. The `plans/` directory is the in-progress fix (HELM-849); it is inert until the matching IntegrationTestScenarios merge in `konflux-release-data`.
+
+### Testing Farm plans (`plans/`)
+
+Testing Farm provisions a guest of the requested architecture, clones this repo, finds `.fmf/version`, and runs the plan named by the ITS `TMT_PLAN` param. The plan's `prepare` phase pulls the snapshot image and copies the native binary out of `/releases/`; its `discover` phase loops the existing `scripts/binary/{non-cluster,cluster}/*.sh`.
+
+Two consequences worth remembering:
+
+- **The plans hold no assertions.** Add a test case to a script and it runs on every runner — GitHub Actions, the Konflux amd64 gate, and all four Testing Farm architectures — with no plan change.
+- **The directory split is the contract.** A cluster-dependent script placed in `non-cluster/` will be picked up by the non-cluster plan and run on a guest with no cluster.
+
+`plans/cluster.fmf` is x86_64/aarch64 only — `kindest/node` ships amd64 and arm64 images only — and fails loudly on other architectures rather than skipping.
 
 **Why both `image.env` and `.tekton/` exist:** `image.env` predates the Konflux pipeline. Once Konflux started injecting the `SNAPSHOT` directly, `image.env` became redundant for that path. It's still here because **Konflux's pipeline doesn't run cluster-based tests**, and GitHub Actions' `kind`-backed runners do. `image.env` is what keeps GHA running the cluster suite — it is not a leftover to clean up.
 

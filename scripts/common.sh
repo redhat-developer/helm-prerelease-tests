@@ -59,7 +59,7 @@ FAILURES=()
 pass() {
     local name="$1"
     echo "PASS: ${name}"
-    ((PASS_COUNT++))
+    PASS_COUNT=$((PASS_COUNT + 1))
 }
 
 fail() {
@@ -70,7 +70,7 @@ fail() {
     else
         echo "FAIL: ${name}"
     fi
-    ((FAIL_COUNT++))
+    FAIL_COUNT=$((FAIL_COUNT + 1))
     FAILURES+=("$name")
 }
 
@@ -82,7 +82,7 @@ skip() {
     else
         echo "SKIP: ${name}"
     fi
-    ((SKIP_COUNT++))
+    SKIP_COUNT=$((SKIP_COUNT + 1))
 }
 
 skip_all() {

@@ -36,7 +36,7 @@ Testing Farm provisions a guest of the requested architecture, clones this repo,
 
 Two consequences worth remembering:
 
-- **The plans hold no assertions.** Add a test case to a script and it runs on every runner — GitHub Actions, the Konflux amd64 gate, and all four Testing Farm architectures — with no plan change.
+- **The plans hold no assertions.** Add a non-cluster test case to a script and it runs on every runner — GitHub Actions, the Konflux amd64 gate, and all four Testing Farm architectures — with no plan change. Cluster test cases run only on GitHub Actions (with `kind`) and Testing Farm for x86_64/aarch64; they are excluded from the Konflux pipeline entirely.
 - **The directory split is the contract.** A cluster-dependent script placed in `non-cluster/` will be picked up by the non-cluster plan and run on a guest with no cluster.
 
 `plans/cluster.fmf` is x86_64/aarch64 only — `kindest/node` ships amd64 and arm64 images only — and fails loudly on other architectures rather than skipping.

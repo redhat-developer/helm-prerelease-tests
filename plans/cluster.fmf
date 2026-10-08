@@ -63,6 +63,7 @@ prepare:
         case "$(uname -m)" in
             x86_64)  kindarch=amd64 ;;
             aarch64) kindarch=arm64 ;;
+            # unreachable after guard-architecture; kept for defensive parity with non-cluster.fmf
             *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
         esac
 
@@ -96,6 +97,7 @@ discover:
             case "$(uname -m)" in
                 x86_64)  goarch=amd64 ;;
                 aarch64) goarch=arm64 ;;
+                # unreachable after guard-architecture; kept for defensive parity with non-cluster.fmf
                 *) echo "unsupported architecture: $(uname -m)"; exit 1 ;;
             esac
 

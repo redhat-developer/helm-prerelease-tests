@@ -31,7 +31,7 @@ single-node Kubernetes distribution ships for those architectures.
 | Script | Category |
 |---|---|
 | 01-validation.sh | Checksums, file type, arch, permissions, size |
-| 02-smoke.sh | Version, help, env |
+| 02-smoke.sh | Version, help, env, shell completion generation & load |
 | 03-dependencies.sh | Static linking verification |
 | 04-functionality.sh | Create, lint, template, package, show, pull, repo ops |
 | 05-v4-features.sh | v4-specific offline feature tests |

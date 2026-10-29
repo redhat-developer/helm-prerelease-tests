@@ -88,12 +88,12 @@ done
 # ---------------------------------------------------------------------------
 bash_comp_file="${HELM_TEST_HOME}/helm-completion.bash"
 if "$HELM_BIN" completion bash > "$bash_comp_file" 2>/dev/null; then
-    load_result="$(COMP_FILE="$bash_comp_file" bash -c 'source "$COMP_FILE"; complete -p helm' 2>&1)" || true
-    log_captured "bash -c 'source ...; complete -p helm'" "$load_result"
-    if echo "$load_result" | grep -q "__start_helm"; then
+    bash_result="$(COMP_FILE="$bash_comp_file" bash -c 'source "$COMP_FILE"; complete -p helm' 2>&1)" || true
+    log_captured "bash -c 'source ...; complete -p helm'" "$bash_result"
+    if printf '%s' "$bash_result" | grep -qF "__start_helm"; then
         pass "Completion load: bash"
     else
-        fail "Completion load: bash" "__start_helm not registered: $load_result"
+        fail "Completion load: bash" "__start_helm not registered: $bash_result"
     fi
 else
     fail "Completion load: bash" "helm completion bash failed to generate"
@@ -114,7 +114,7 @@ if command -v zsh > /dev/null 2>&1; then
              typeset -f _helm >/dev/null 2>&1 && [ -n "${_comps[helm]}" ] && \
              echo "_helm defined, _comps[helm]=${_comps[helm]}"' 2>&1)" || true
         log_captured "zsh -c 'compinit; source ...; typeset -f _helm; _comps[helm]'" "$zsh_result"
-        if echo "$zsh_result" | grep -q "_helm defined"; then
+        if printf '%s' "$zsh_result" | grep -qF "_helm defined"; then
             pass "Completion load: zsh"
         else
             fail "Completion load: zsh" "_helm not defined or compdef not registered after compinit+source: $zsh_result"

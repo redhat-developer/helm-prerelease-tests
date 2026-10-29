@@ -127,6 +127,11 @@ jobs:
         working-directory: helm-binary-test
         run: bash ../scripts/binary/non-cluster/06-distribution.sh 2>&1 | tee ../test-results/verbose/nc-06-distribution.log
 
+      - name: non-cluster / 07-fips
+        shell: bash
+        working-directory: helm-binary-test
+        run: bash ../scripts/binary/non-cluster/07-fips.sh 2>&1 | tee ../test-results/verbose/nc-07-fips.log
+
       - name: cluster / 01-functionality
         shell: bash
         working-directory: helm-binary-test

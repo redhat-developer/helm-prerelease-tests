@@ -47,7 +47,7 @@ if run_cmd "$HELM_BIN" create "$lint_ver_chart" && [[ -d "$lint_ver_chart" ]]; t
     # Helper: set the version field in Chart.yaml using awk (portable).
     set_chart_version() {
         awk -v ver="$1" '{
-            if ($0 ~ /^version:/) print "version: " ver; else print
+            if ($0 ~ /^version:/) print "version: \"" ver "\""; else print
         }' "$lint_ver_chart/Chart.yaml" > "$lint_ver_chart/Chart.yaml.tmp" \
             && mv "$lint_ver_chart/Chart.yaml.tmp" "$lint_ver_chart/Chart.yaml"
     }

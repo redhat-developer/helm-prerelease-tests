@@ -112,8 +112,10 @@ if command -v zsh > /dev/null 2>&1; then
         # compdef line is absent.  Use -d to write .zcompdump inside the
         # isolated HELM_TEST_HOME rather than the real $HOME.
         zsh_result="$(COMP_FILE="$zsh_comp_file" ZDUMP="$HELM_TEST_HOME/.zcompdump" zsh -c \
-            'autoload -U compinit && compinit -u -d "$ZDUMP" && source "$COMP_FILE" && \
-             typeset -f _helm >/dev/null 2>&1 && [ -n "${_comps[helm]}" ] && \
+            'autoload -U compinit && compinit -u -d "$ZDUMP" || { echo compinit_failed; exit 1; }
+             source "$COMP_FILE" || { echo source_failed; exit 1; }
+             typeset -f _helm >/dev/null 2>&1 || { echo _helm_not_defined; exit 1; }
+             [ -n "${_comps[helm]}" ] || { echo _comps_helm_not_set; exit 1; }
              echo "_helm defined, _comps[helm]=${_comps[helm]}"' 2>&1)" || true
         log_captured "zsh -c 'compinit; source ...; typeset -f _helm; _comps[helm]'" "$zsh_result"
         if printf '%s' "$zsh_result" | grep -qF "_helm defined"; then

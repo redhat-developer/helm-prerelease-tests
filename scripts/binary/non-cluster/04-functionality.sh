@@ -90,7 +90,7 @@ if run_cmd "$HELM_BIN" create "$lint_ver_chart" && [[ -d "$lint_ver_chart" ]]; t
         log_captured "$HELM_BIN lint $lint_ver_chart (version $ver)" "$lint_output"
         if [[ $lint_exit -ne 0 ]] \
            && echo "$lint_output" | grep -q "1 chart(s) failed" \
-           && echo "$lint_output" | grep -Fq "$ver"; then
+           && echo "$lint_output" | grep -F '[ERROR]' | grep -Fq "$ver"; then
             pass "Lint version rejected: $ver"
         else
             fail "Lint version rejected: $ver" "exit=$lint_exit output=$lint_output"

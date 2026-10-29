@@ -53,4 +53,54 @@ else
     fail "Environment info" "expected HELM_ variables in env output"
 fi
 
+# ---------------------------------------------------------------------------
+# Shell completion — generation
+# ---------------------------------------------------------------------------
+for shell_name in bash zsh fish powershell; do
+    completion_exit=0
+    completion_out="$("$HELM_BIN" completion "$shell_name" 2>&1)" || completion_exit=$?
+    log_captured "$HELM_BIN completion $shell_name" "$completion_out"
+    if [ "$completion_exit" -eq 0 ] && [ -n "$completion_out" ]; then
+        pass "completion generation: $shell_name"
+    else
+        fail "completion generation: $shell_name" "exit ${completion_exit} or empty output"
+    fi
+done
+
+# ---------------------------------------------------------------------------
+# Shell completion — bash load test
+# ---------------------------------------------------------------------------
+bash_comp_file="${HELM_TEST_HOME}/helm-completion.bash"
+if "$HELM_BIN" completion bash > "$bash_comp_file" 2>/dev/null; then
+    load_result="$(bash -c "source '${bash_comp_file}'; complete -p helm" 2>&1)" || true
+    log_captured "bash -c 'source ...; complete -p helm'" "$load_result"
+    if echo "$load_result" | grep -q "__start_helm"; then
+        pass "completion load: bash"
+    else
+        fail "completion load: bash" "__start_helm not registered: $load_result"
+    fi
+else
+    fail "completion load: bash" "helm completion bash failed to generate"
+fi
+
+# ---------------------------------------------------------------------------
+# Shell completion — zsh load test
+# ---------------------------------------------------------------------------
+if command -v zsh > /dev/null 2>&1; then
+    zsh_comp_file="${HELM_TEST_HOME}/helm-completion.zsh"
+    if "$HELM_BIN" completion zsh > "$zsh_comp_file" 2>/dev/null; then
+        zsh_result="$(zsh -c "autoload -U compinit && compinit -u && source '${zsh_comp_file}' && typeset -f _helm >/dev/null 2>&1 && echo '_helm defined'" 2>&1)" || true
+        log_captured "zsh -c 'compinit; source ...; typeset -f _helm'" "$zsh_result"
+        if echo "$zsh_result" | grep -q "_helm defined"; then
+            pass "completion load: zsh"
+        else
+            fail "completion load: zsh" "_helm not defined after compinit+source: $zsh_result"
+        fi
+    else
+        fail "completion load: zsh" "helm completion zsh failed to generate"
+    fi
+else
+    skip "completion load: zsh" "zsh not available"
+fi
+
 summary

@@ -54,10 +54,12 @@ if run_cmd "$HELM_BIN" create "$lint_ver_chart" && [[ -d "$lint_ver_chart" ]]; t
 
     # --- Class 1: accepted silently (valid SemVer) ---
     for ver in "1.2.3" "1.0.0-alpha.1"; do
-        set_chart_version "$ver"
-        lint_output="$("$HELM_BIN" lint "$lint_ver_chart" 2>&1)" || true
+        set_chart_version "$ver" || { skip "Lint version accepted silently: $ver" "set_chart_version failed"; continue; }
+        lint_output="$("$HELM_BIN" lint "$lint_ver_chart" 2>&1)"
+        lint_exit=$?
         log_captured "$HELM_BIN lint $lint_ver_chart (version $ver)" "$lint_output"
-        if echo "$lint_output" | grep -q "0 chart(s) failed" \
+        if [[ $lint_exit -eq 0 ]] \
+           && echo "$lint_output" | grep -q "0 chart(s) failed" \
            && ! echo "$lint_output" | grep -qi "version.*is not a valid"; then
             pass "Lint version accepted silently: $ver"
         else
@@ -67,10 +69,12 @@ if run_cmd "$HELM_BIN" create "$lint_ver_chart" && [[ -d "$lint_ver_chart" ]]; t
 
     # --- Class 2: accepted with warning (lenient semver) ---
     for ver in "v1" "1.2"; do
-        set_chart_version "$ver"
-        lint_output="$("$HELM_BIN" lint "$lint_ver_chart" 2>&1)" || true
+        set_chart_version "$ver" || { skip "Lint version warning: $ver" "set_chart_version failed"; continue; }
+        lint_output="$("$HELM_BIN" lint "$lint_ver_chart" 2>&1)"
+        lint_exit=$?
         log_captured "$HELM_BIN lint $lint_ver_chart (version $ver)" "$lint_output"
-        if echo "$lint_output" | grep -q "0 chart(s) failed" \
+        if [[ $lint_exit -eq 0 ]] \
+           && echo "$lint_output" | grep -q "0 chart(s) failed" \
            && echo "$lint_output" | grep -F '[WARNING]' | grep -Fq "$ver"; then
             pass "Lint version warning: $ver"
         else
@@ -80,7 +84,7 @@ if run_cmd "$HELM_BIN" create "$lint_ver_chart" && [[ -d "$lint_ver_chart" ]]; t
 
     # --- Class 3: rejected (invalid semver) ---
     for ver in "1.2.3.4" "abc"; do
-        set_chart_version "$ver"
+        set_chart_version "$ver" || { skip "Lint version rejected: $ver" "set_chart_version failed"; continue; }
         lint_output="$("$HELM_BIN" lint "$lint_ver_chart" 2>&1)"
         lint_exit=$?
         log_captured "$HELM_BIN lint $lint_ver_chart (version $ver)" "$lint_output"

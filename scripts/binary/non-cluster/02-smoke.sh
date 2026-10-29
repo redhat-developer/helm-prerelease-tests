@@ -55,15 +55,28 @@ fi
 
 # ---------------------------------------------------------------------------
 # Shell completion — generation
+# Assert a per-shell marker in stdout (not just non-empty, which stderr alone
+# could satisfy).  Capture stdout only; discard stderr to keep noise out.
 # ---------------------------------------------------------------------------
 for shell_name in bash zsh fish powershell; do
     completion_exit=0
-    completion_out="$("$HELM_BIN" completion "$shell_name" 2>&1)" || completion_exit=$?
-    log_captured "$HELM_BIN completion $shell_name" "$completion_out"
-    if [ "$completion_exit" -eq 0 ] && [ -n "$completion_out" ]; then
+    completion_out="$("$HELM_BIN" completion "$shell_name" 2>/dev/null)" || completion_exit=$?
+    case "$shell_name" in
+        bash)       completion_marker="__start_helm" ;;
+        zsh)        completion_marker="compdef _helm helm" ;;
+        fish)       completion_marker="complete -c helm" ;;
+        powershell) completion_marker="Register-ArgumentCompleter" ;;
+    esac
+    # Log a digest rather than the full script (VERBOSE=1 would otherwise
+    # dump hundreds of lines per shell and bury the PASS:/FAIL: output).
+    comp_bytes="${#completion_out}"
+    comp_lines="$(printf '%s' "$completion_out" | wc -l | tr -d ' ')"
+    comp_first="$(printf '%s' "$completion_out" | head -1)"
+    log_captured "$HELM_BIN completion $shell_name" "${comp_bytes}B ${comp_lines}L | ${comp_first}"
+    if [ "$completion_exit" -eq 0 ] && printf '%s' "$completion_out" | grep -qF "$completion_marker"; then
         pass "Completion generation: $shell_name"
     else
-        fail "Completion generation: $shell_name" "exit ${completion_exit} or empty output"
+        fail "Completion generation: $shell_name" "exit ${completion_exit} or marker '${completion_marker}' not found"
     fi
 done
 
@@ -92,12 +105,19 @@ fi
 if command -v zsh > /dev/null 2>&1; then
     zsh_comp_file="${HELM_TEST_HOME}/helm-completion.zsh"
     if "$HELM_BIN" completion zsh > "$zsh_comp_file" 2>/dev/null; then
-        zsh_result="$(COMP_FILE="$zsh_comp_file" zsh -c 'autoload -U compinit && compinit -u && source "$COMP_FILE" && typeset -f _helm >/dev/null 2>&1 && echo "_helm defined"' 2>&1)" || true
-        log_captured "zsh -c 'compinit; source ...; typeset -f _helm'" "$zsh_result"
+        # Assert both: _helm function is defined AND compdef registration took
+        # effect (_comps[helm] is set).  typeset -f alone passes even when the
+        # compdef line is absent.  Use -d to write .zcompdump inside the
+        # isolated HELM_TEST_HOME rather than the real $HOME.
+        zsh_result="$(COMP_FILE="$zsh_comp_file" ZDUMP="$HELM_TEST_HOME/.zcompdump" zsh -c \
+            'autoload -U compinit && compinit -u -d "$ZDUMP" && source "$COMP_FILE" && \
+             typeset -f _helm >/dev/null 2>&1 && [ -n "${_comps[helm]}" ] && \
+             echo "_helm defined, _comps[helm]=${_comps[helm]}"' 2>&1)" || true
+        log_captured "zsh -c 'compinit; source ...; typeset -f _helm; _comps[helm]'" "$zsh_result"
         if echo "$zsh_result" | grep -q "_helm defined"; then
             pass "Completion load: zsh"
         else
-            fail "Completion load: zsh" "_helm not defined after compinit+source: $zsh_result"
+            fail "Completion load: zsh" "_helm not defined or compdef not registered after compinit+source: $zsh_result"
         fi
     else
         fail "Completion load: zsh" "helm completion zsh failed to generate"

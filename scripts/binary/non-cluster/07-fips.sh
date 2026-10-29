@@ -22,10 +22,12 @@ echo ""
 # is a build defect. This is the check that would have caught 3.21.2.1-83.
 #
 # grep -a treats the binary as text; -F matches fixed strings.
-if grep -qaF 'GOFIPS140' "$HELM_BIN"; then
+# Assert the value (v1.0.0) not just the key: GOFIPS140=latest links the
+# latest module rather than the frozen certified snapshot and must not pass.
+if grep -qaF 'GOFIPS140=v1.0.0' "$HELM_BIN"; then
     pass "GOFIPS140 build stamp present"
 else
-    fail "GOFIPS140 build stamp present" "binary contains no GOFIPS140 build stamp"
+    fail "GOFIPS140 build stamp present" "binary contains no GOFIPS140=v1.0.0 build stamp (certified module not linked)"
 fi
 
 # ---------------------------------------------------------------------------

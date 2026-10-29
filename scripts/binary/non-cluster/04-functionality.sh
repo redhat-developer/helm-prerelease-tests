@@ -32,7 +32,8 @@ fi
 # ---------------------------------------------------------------------------
 # Lint chart version validation
 # ---------------------------------------------------------------------------
-# Uses the test-chart created above.  For each version string, rewrite
+# Creates a dedicated chart (lint-ver-test) to avoid mutating the shared
+# test-chart used by later sections.  For each version string, rewrite
 # Chart.yaml's version field, run helm lint, and check the result.
 # Three outcome classes on apiVersion v2 charts:
 #   Class 1 — valid semver: exit 0, no version diagnostic
@@ -54,42 +55,41 @@ if run_cmd "$HELM_BIN" create "$lint_ver_chart" && [[ -d "$lint_ver_chart" ]]; t
     # --- Class 1: accepted silently (valid SemVer) ---
     for ver in "1.2.3" "1.0.0-alpha.1"; do
         set_chart_version "$ver"
-        lint_out="$("$HELM_BIN" lint "$lint_ver_chart" 2>&1)" || true
-        log_captured "$HELM_BIN lint $lint_ver_chart (version $ver)" "$lint_out"
-        if echo "$lint_out" | grep -q "0 chart(s) failed" \
-           && ! echo "$lint_out" | grep -qi "version.*is not a valid"; then
+        lint_output="$("$HELM_BIN" lint "$lint_ver_chart" 2>&1)" || true
+        log_captured "$HELM_BIN lint $lint_ver_chart (version $ver)" "$lint_output"
+        if echo "$lint_output" | grep -q "0 chart(s) failed" \
+           && ! echo "$lint_output" | grep -qi "version.*is not a valid"; then
             pass "Lint version accepted silently: $ver"
         else
-            fail "Lint version accepted silently: $ver" "$lint_out"
+            fail "Lint version accepted silently: $ver" "$lint_output"
         fi
     done
 
     # --- Class 2: accepted with warning (lenient semver) ---
     for ver in "v1" "1.2"; do
         set_chart_version "$ver"
-        lint_out="$("$HELM_BIN" lint "$lint_ver_chart" 2>&1)" || true
-        log_captured "$HELM_BIN lint $lint_ver_chart (version $ver)" "$lint_out"
-        if echo "$lint_out" | grep -q "0 chart(s) failed" \
-           && echo "$lint_out" | grep -q "\[WARNING\]" \
-           && echo "$lint_out" | grep -q "$ver"; then
+        lint_output="$("$HELM_BIN" lint "$lint_ver_chart" 2>&1)" || true
+        log_captured "$HELM_BIN lint $lint_ver_chart (version $ver)" "$lint_output"
+        if echo "$lint_output" | grep -q "0 chart(s) failed" \
+           && echo "$lint_output" | grep -F '[WARNING]' | grep -Fq "$ver"; then
             pass "Lint version warning: $ver"
         else
-            fail "Lint version warning: $ver" "$lint_out"
+            fail "Lint version warning: $ver" "$lint_output"
         fi
     done
 
     # --- Class 3: rejected (invalid semver) ---
     for ver in "1.2.3.4" "abc"; do
         set_chart_version "$ver"
-        lint_out="$("$HELM_BIN" lint "$lint_ver_chart" 2>&1)"
-        lint_rc=$?
-        log_captured "$HELM_BIN lint $lint_ver_chart (version $ver)" "$lint_out"
-        if [[ $lint_rc -ne 0 ]] \
-           && echo "$lint_out" | grep -q "1 chart(s) failed" \
-           && echo "$lint_out" | grep -q "$ver"; then
+        lint_output="$("$HELM_BIN" lint "$lint_ver_chart" 2>&1)"
+        lint_exit=$?
+        log_captured "$HELM_BIN lint $lint_ver_chart (version $ver)" "$lint_output"
+        if [[ $lint_exit -ne 0 ]] \
+           && echo "$lint_output" | grep -q "1 chart(s) failed" \
+           && echo "$lint_output" | grep -Fq "$ver"; then
             pass "Lint version rejected: $ver"
         else
-            fail "Lint version rejected: $ver" "exit=$lint_rc output=$lint_out"
+            fail "Lint version rejected: $ver" "exit=$lint_exit output=$lint_output"
         fi
     done
 

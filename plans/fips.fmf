@@ -74,6 +74,7 @@ discover:
         summary: All non-cluster binary suites on a FIPS-enabled host
         duration: 15m
         test: |
+            # -e omitted: failures collected manually via failed+=()
             set -uo pipefail
 
             case "$(uname -m)" in

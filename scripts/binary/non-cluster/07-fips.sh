@@ -24,6 +24,11 @@ echo ""
 # grep -a treats the binary as text; -F matches fixed strings.
 # Assert the value (v1.0.0) not just the key: GOFIPS140=latest links the
 # latest module rather than the frozen certified snapshot and must not pass.
+#
+# The version (v1.0.0) corresponds to the first CMVP-certified snapshot of
+# the Go FIPS 140-2 module. When Red Hat certifies a newer snapshot
+# (e.g., v1.1.0), update the grep string below to the new version and
+# record the change in the Results history table in docs/FIPS-VERIFICATION-RUNBOOK.md.
 if grep -qaF 'GOFIPS140=v1.0.0' "$HELM_BIN"; then
     pass "GOFIPS140 build stamp present"
 else
@@ -176,6 +181,7 @@ GOEOF
                 "probe server did not start: $(cat "${probe_dir}/srv.err" 2>/dev/null)"
             kill "$probe_pid" 2>/dev/null || true
             wait "$probe_pid" 2>/dev/null || true
+            rm -rf "$probe_dir"
         else
             log_verbose "probe server listening on ${addr}"
 
@@ -199,7 +205,7 @@ GOEOF
             # handshake succeeded and helm reached the HTTP layer.
             # If neither signal appears the probe may have crashed or the
             # exchange was inconclusive — skip rather than false-pass.
-            if echo "$helm_output" | grep -qi "cipher\|handshake failure"; then
+            if echo "$helm_output" | grep -Eqi "cipher|handshake failure"; then
                 fail "Non-FIPS host ChaCha20 acceptance" \
                     "ChaCha20 rejected on non-FIPS host — FIPS appears stuck on"
             elif echo "$helm_output" | grep -qi "not a valid chart repository"; then

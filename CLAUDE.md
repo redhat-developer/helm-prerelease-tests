@@ -27,6 +27,7 @@ Seven platform targets matter for sign-off: `linux-amd64`, `linux-arm64`, `linux
 | `.fmf/version` | Marks this repo as an fmf metadata tree root. Testing Farm finds no plans without it. Contents: `1`. |
 | `plans/non-cluster.fmf`, `plans/cluster.fmf` | tmt plans run by Testing Farm. Envelopes only — they extract the binary from `IMAGE_URL` and invoke the same `scripts/` suites every other runner uses. See below. |
 | `plans/fips.fmf` | Testing Farm plan that enables FIPS on an x86_64 guest, verifies FIPS is active, and runs the full non-cluster suite including the build stamp checks. |
+| `docs/FIPS-VERIFICATION-RUNBOOK.md` | Methodology and reference for verifying FIPS compliance — two-gate model (build stamp and runtime behavior), known non-defects, and results history. |
 | `.fullsend/config.yaml`, `.github/workflows/fullsend.yaml`, `.github/workflows/prioritize.yml` | fullsend automation wiring — see below. |
 
 `linux-ppc64le` / `linux-s390x` have no automated coverage in this repo today — they're tested manually, outside CI. The `plans/` directory is the in-progress fix (HELM-849); it is inert until the matching IntegrationTestScenarios merge in `konflux-release-data`.

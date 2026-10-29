@@ -33,13 +33,13 @@ prepare:
     order: 1
     script: |
         set -euo pipefail
-        if ! test -f /proc/sys/crypto/fips_enabled; then
+        if [[ ! -f /proc/sys/crypto/fips_enabled ]]; then
             echo "FATAL: /proc/sys/crypto/fips_enabled does not exist."
             echo "The FIPS feature prepare step did not apply."
             exit 1
         fi
         fips_val="$(cat /proc/sys/crypto/fips_enabled)"
-        if test "$fips_val" != "1"; then
+        if [[ "$fips_val" != "1" ]]; then
             echo "FATAL: /proc/sys/crypto/fips_enabled reads '${fips_val}', expected '1'."
             echo "The FIPS feature prepare step did not apply correctly."
             exit 1

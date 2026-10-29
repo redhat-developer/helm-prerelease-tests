@@ -27,8 +27,9 @@ echo ""
 #
 # The version (v1.0.0) corresponds to the first CMVP-certified snapshot of
 # the Go FIPS 140-2 module. When Red Hat certifies a newer snapshot
-# (e.g., v1.1.0), update the grep string below to the new version and
-# record the change in the Results history table in docs/FIPS-VERIFICATION-RUNBOOK.md.
+# (e.g., v1.1.0), update the grep string below to the new version. Confirm
+# the new stamp first with `go version -m <binary>`, or by grepping the
+# binary for GOFIPS140= directly if no Go toolchain is to hand.
 if grep -qaF 'GOFIPS140=v1.0.0' "$HELM_BIN"; then
     pass "GOFIPS140 build stamp present"
 else

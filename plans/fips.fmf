@@ -1,0 +1,104 @@
+# Runs scripts/binary/non-cluster/ on a FIPS-enabled x86_64 guest.
+#
+# Driven by Testing Farm via the shared Konflux pipeline. The prepare phase
+# enables FIPS on the guest before extracting binaries. The guard verifies
+# FIPS is actually active — a silently non-FIPS guest would invert every
+# expectation, the way plans/cluster.fmf guards on architecture.
+#
+# x86_64 only to start. aarch64 can be added once CI has capacity.
+#
+# The matching IntegrationTestScenario lives in konflux-release-data,
+# outside this repository. It must be created by a human.
+
+summary: Helm CLI binary tests on a FIPS-enabled host
+description: |
+    Enables FIPS on the guest, extracts the shipped binary from the
+    helm-cli snapshot image, and runs every suite under
+    scripts/binary/non-cluster/. The FIPS build stamp check validates
+    the certified module linkage; the ChaCha20 behavioral probe skips
+    on a FIPS host (non-FIPS behavior is not testable there).
+
+environment:
+    VERBOSE: "1"
+    BINARIES_DIR: /opt/helm-binaries
+
+prepare:
+  - name: enable-fips
+    how: feature
+    fips: enabled
+    order: 0
+
+  - name: guard-fips
+    how: shell
+    order: 1
+    script: |
+        set -euo pipefail
+        if ! test -f /proc/sys/crypto/fips_enabled; then
+            echo "FATAL: /proc/sys/crypto/fips_enabled does not exist."
+            echo "The FIPS feature prepare step did not apply."
+            exit 1
+        fi
+        fips_val="$(cat /proc/sys/crypto/fips_enabled)"
+        if test "$fips_val" != "1"; then
+            echo "FATAL: /proc/sys/crypto/fips_enabled reads '${fips_val}', expected '1'."
+            echo "The FIPS feature prepare step did not apply correctly."
+            exit 1
+        fi
+        echo "FIPS mode confirmed: /proc/sys/crypto/fips_enabled = 1"
+
+  - name: packages
+    how: install
+    package:
+      - podman
+      - tar
+      - gzip
+      - golang
+
+  - name: extract-binaries
+    how: shell
+    script: |
+        set -euo pipefail
+        : "${IMAGE_URL:?IMAGE_URL is injected by the Testing Farm Konflux pipeline}"
+
+        mkdir -p "$BINARIES_DIR"
+        podman pull "$IMAGE_URL"
+        cid="$(podman create "$IMAGE_URL")"
+        podman cp "${cid}:/releases/." "$BINARIES_DIR/"
+        podman rm "$cid"
+        chmod +x "$BINARIES_DIR"/helm-linux-* || true
+        ls -lh "$BINARIES_DIR"
+
+discover:
+    how: shell
+    tests:
+      - name: /non-cluster-fips
+        summary: All non-cluster binary suites on a FIPS-enabled host
+        duration: 15m
+        test: |
+            set -uo pipefail
+
+            case "$(uname -m)" in
+                x86_64) goarch=amd64 ;;
+                *)
+                    echo "FATAL: the FIPS plan supports x86_64 only."
+                    exit 1
+                    ;;
+            esac
+
+            export HELM_PLATFORM="linux-${goarch}"
+            cd "$BINARIES_DIR"
+
+            failed=()
+            for script in "$TMT_TREE"/scripts/binary/non-cluster/*.sh; do
+                suite="$(basename "$script" .sh)"
+                echo "=== ${suite} ==="
+                bash "$script" || failed+=("$suite")
+            done
+
+            if [[ ${#failed[@]} -gt 0 ]]; then
+                echo "FAILED SUITES: ${failed[*]}"
+                exit 1
+            fi
+
+execute:
+    how: tmt

@@ -15,31 +15,35 @@ echo ""
 # ---------------------------------------------------------------------------
 # 1. Build stamp — GOFIPS140 module linked
 # ---------------------------------------------------------------------------
-# A FIPS-enabled build embeds a GOFIPS140=v1.0.0-<hash> stamp as printable
-# text. grep -a treats the binary as text; -F matches fixed strings.
-# This is the check that would have caught 3.21.2.1-83.
+# Red Hat applies GOFIPS140=certified at build time for all seven shipped
+# platform targets (linux-amd64, linux-arm64, linux-ppc64le, linux-s390x,
+# darwin-amd64, darwin-arm64, windows-amd64). All binaries are expected to
+# carry the GOFIPS140=v1.0.0-<hash> stamp; a missing stamp on any platform
+# is a build defect. This is the check that would have caught 3.21.2.1-83.
+#
+# grep -a treats the binary as text; -F matches fixed strings.
 if grep -qaF 'GOFIPS140' "$HELM_BIN"; then
-    pass "fips-build-stamp-present"
+    pass "GOFIPS140 build stamp present"
 else
-    fail "fips-build-stamp-present" "binary contains no GOFIPS140 build stamp"
+    fail "GOFIPS140 build stamp present" "binary contains no GOFIPS140 build stamp"
 fi
 
 # ---------------------------------------------------------------------------
 # 2. Build tag — -tags=...,fips140v1.0
 # ---------------------------------------------------------------------------
 if grep -qaF 'fips140v1.0' "$HELM_BIN"; then
-    pass "fips-build-tag"
+    pass "FIPS build tag (fips140v1.0)"
 else
-    fail "fips-build-tag" "expected fips140v1.0 build tag not found"
+    fail "FIPS build tag (fips140v1.0)" "expected fips140v1.0 build tag not found"
 fi
 
 # ---------------------------------------------------------------------------
 # 3. DefaultGODEBUG — fips140=auto
 # ---------------------------------------------------------------------------
 if grep -qaF 'fips140=auto' "$HELM_BIN"; then
-    pass "fips-default-godebug"
+    pass "DefaultGODEBUG fips140=auto"
 else
-    fail "fips-default-godebug" "expected DefaultGODEBUG fips140=auto not found"
+    fail "DefaultGODEBUG fips140=auto" "expected DefaultGODEBUG fips140=auto not found"
 fi
 
 # ---------------------------------------------------------------------------
@@ -59,17 +63,17 @@ fi
 # Skips on FIPS-enabled hosts — non-FIPS behavior is not testable there.
 
 chacha_skip=""
-if test -f /proc/sys/crypto/fips_enabled; then
+if [[ -f /proc/sys/crypto/fips_enabled ]]; then
     fips_val="$(cat /proc/sys/crypto/fips_enabled)"
-    if test "$fips_val" = "1"; then
+    if [[ "$fips_val" = "1" ]]; then
         chacha_skip="host is FIPS-enabled — non-FIPS behavior not testable here"
     fi
 fi
 
-if test -n "$chacha_skip"; then
-    skip "non-fips-chacha20" "$chacha_skip"
+if [[ -n "$chacha_skip" ]]; then
+    skip "Non-FIPS host ChaCha20 acceptance" "$chacha_skip"
 elif ! command -v go >/dev/null 2>&1; then
-    skip "non-fips-chacha20" "Go toolchain absent"
+    skip "Non-FIPS host ChaCha20 acceptance" "Go toolchain absent"
 else
     probe_dir="$(mktemp -d "${TMPDIR:-/tmp}/fips-probe.XXXXXX")"
 
@@ -148,8 +152,8 @@ GOEOF
     build_err=""
     build_err="$(cd "${probe_dir}" && go build -o probe . 2>&1)" || true
 
-    if ! test -x "${probe_dir}/probe"; then
-        skip "non-fips-chacha20" "probe failed to compile: ${build_err}"
+    if [[ ! -x "${probe_dir}/probe" ]]; then
+        skip "Non-FIPS host ChaCha20 acceptance" "probe failed to compile: ${build_err}"
         rm -rf "$probe_dir"
     else
         # Start the server and wait for it to print its listener address.
@@ -158,15 +162,15 @@ GOEOF
 
         addr=""
         for _i in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20; do
-            if test -s "${probe_dir}/addr"; then
+            if [[ -s "${probe_dir}/addr" ]]; then
                 addr="$(head -1 "${probe_dir}/addr" | tr -d '\r\n')"
                 break
             fi
             sleep 0.5
         done
 
-        if test -z "$addr"; then
-            skip "non-fips-chacha20" \
+        if [[ -z "$addr" ]]; then
+            skip "Non-FIPS host ChaCha20 acceptance" \
                 "probe server did not start: $(cat "${probe_dir}/srv.err" 2>/dev/null)"
             kill "$probe_pid" 2>/dev/null || true
             wait "$probe_pid" 2>/dev/null || true
@@ -189,13 +193,18 @@ GOEOF
 
             # A TLS cipher/handshake error means FIPS blocked ChaCha20
             # even though the host is non-FIPS — stuck on.
-            # Any other outcome (e.g. "not a valid chart repository")
-            # means the handshake succeeded — correct behavior.
+            # A "not a valid chart repository" message confirms the TLS
+            # handshake succeeded and helm reached the HTTP layer.
+            # If neither signal appears the probe may have crashed or the
+            # exchange was inconclusive — skip rather than false-pass.
             if echo "$helm_output" | grep -qi "cipher\|handshake failure"; then
-                fail "non-fips-chacha20" \
+                fail "Non-FIPS host ChaCha20 acceptance" \
                     "ChaCha20 rejected on non-FIPS host — FIPS appears stuck on"
+            elif echo "$helm_output" | grep -qi "not a valid chart repository"; then
+                pass "Non-FIPS host ChaCha20 acceptance"
             else
-                pass "non-fips-chacha20"
+                skip "Non-FIPS host ChaCha20 acceptance" \
+                    "no cipher failure and no successful-handshake marker observed — outcome inconclusive"
             fi
         fi
 

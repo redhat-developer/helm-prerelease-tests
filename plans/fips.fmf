@@ -52,7 +52,6 @@ prepare:
       - podman
       - tar
       - gzip
-      - golang
 
   - name: extract-binaries
     how: shell

@@ -67,7 +67,6 @@ for shell_name in bash zsh fish powershell; do
         zsh)        completion_marker="compdef _helm helm" ;;
         fish)       completion_marker="complete -c helm" ;;
         powershell) completion_marker="Register-ArgumentCompleter" ;;
-        *)          fail "Completion generation: $shell_name" "no marker defined for $shell_name"; continue ;;
     esac
     # Log a digest rather than the full script (VERBOSE=1 would otherwise
     # dump hundreds of lines per shell and bury the PASS:/FAIL: output).
@@ -81,6 +80,33 @@ for shell_name in bash zsh fish powershell; do
         fail "Completion generation: $shell_name" "exit ${completion_exit} or marker '${completion_marker}' not found"
     fi
 done
+
+# ---------------------------------------------------------------------------
+# Shell completion — __complete subcommand (all platforms, no shell required)
+# Verifies that the binary returns specific known candidates, not just that
+# the completion scripts load.  A build whose completion function returns no
+# candidates would pass every generation/load assertion above but fail here.
+# ---------------------------------------------------------------------------
+complete_subcmd_out="$("$HELM_BIN" __complete "" 2>/dev/null)" || true
+csc_count="$(printf '%s' "$complete_subcmd_out" | wc -l | tr -d ' ')"
+csc_first="$(printf '%s' "$complete_subcmd_out" | head -1)"
+log_captured "$HELM_BIN __complete ''" "${csc_count}L | ${csc_first}"
+if printf '%s' "$complete_subcmd_out" | grep -qF "install" && \
+   printf '%s' "$complete_subcmd_out" | grep -qF "template"; then
+    pass "Completion candidates: subcommands"
+else
+    fail "Completion candidates: subcommands" "'install' or 'template' not found in __complete output"
+fi
+
+complete_flag_out="$("$HELM_BIN" __complete install -- 2>/dev/null)" || true
+cfl_count="$(printf '%s' "$complete_flag_out" | wc -l | tr -d ' ')"
+cfl_first="$(printf '%s' "$complete_flag_out" | head -1)"
+log_captured "$HELM_BIN __complete install --" "${cfl_count}L | ${cfl_first}"
+if printf '%s' "$complete_flag_out" | grep -qF -- "--namespace"; then
+    pass "Completion candidates: install flags"
+else
+    fail "Completion candidates: install flags" "'--namespace' not found in __complete install -- output"
+fi
 
 # ---------------------------------------------------------------------------
 # Shell completion — bash load test
@@ -113,6 +139,7 @@ if command -v zsh > /dev/null 2>&1; then
         # isolated HELM_TEST_HOME rather than the real $HOME.
         zsh_result="$(COMP_FILE="$zsh_comp_file" ZDUMP="$HELM_TEST_HOME/.zcompdump" zsh -c \
             'autoload -U compinit && compinit -u -d "$ZDUMP" || { echo compinit_failed; exit 1; }
+             unfunction _helm 2>/dev/null; unset "_comps[helm]"
              source "$COMP_FILE" || { echo source_failed; exit 1; }
              typeset -f _helm >/dev/null 2>&1 || { echo _helm_not_defined; exit 1; }
              [ -n "${_comps[helm]}" ] || { echo _comps_helm_not_set; exit 1; }

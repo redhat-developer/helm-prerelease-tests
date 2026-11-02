@@ -67,6 +67,11 @@ for shell_name in bash zsh fish powershell; do
         zsh)        completion_marker="compdef _helm helm" ;;
         fish)       completion_marker="complete -c helm" ;;
         powershell) completion_marker="Register-ArgumentCompleter" ;;
+        # Unreachable for the list above, and deliberately kept: adding a shell
+        # to the `for` list without a matching arm here would leave the marker
+        # empty, and `grep -qF ""` matches any non-empty input — a silent false
+        # PASS. Fail loudly instead. Do not remove as dead code.
+        *)          fail "Completion generation: $shell_name" "no marker defined for $shell_name"; continue ;;
     esac
     # Log a digest rather than the full script (VERBOSE=1 would otherwise
     # dump hundreds of lines per shell and bury the PASS:/FAIL: output).

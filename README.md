@@ -36,6 +36,7 @@ single-node Kubernetes distribution ships for those architectures.
 | 04-functionality.sh | Create, lint, template, package, show, pull, repo ops |
 | 05-v4-features.sh | v4-specific offline feature tests |
 | 06-distribution.sh | Archive extraction (.tar.gz, .zip) |
+| 07-fips.sh | FIPS build stamp verification and non-FIPS host behavior (ChaCha20 acceptance) |
 
 `scripts/binary/cluster/` — require a live Kubernetes cluster (self-skip when absent):
 

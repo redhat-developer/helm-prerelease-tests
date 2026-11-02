@@ -71,7 +71,9 @@ for shell_name in bash zsh fish powershell; do
     # Log a digest rather than the full script (VERBOSE=1 would otherwise
     # dump hundreds of lines per shell and bury the PASS:/FAIL: output).
     comp_bytes="${#completion_out}"
-    comp_lines="$(printf '%s' "$completion_out" | wc -l | tr -d ' ')"
+    # grep -c '' counts the final unterminated line (which `wc -l` misses) and
+    # still reports 0 for empty input.
+    comp_lines="$(printf '%s' "$completion_out" | grep -c '' | tr -d ' ')"
     comp_first="$(printf '%s' "$completion_out" | head -1)"
     log_captured "$HELM_BIN completion $shell_name" "${comp_bytes}B ${comp_lines}L | ${comp_first}"
     if [ "$completion_exit" -eq 0 ] && printf '%s' "$completion_out" | grep -qF "$completion_marker"; then
@@ -88,9 +90,9 @@ done
 # candidates would pass every generation/load assertion above but fail here.
 # ---------------------------------------------------------------------------
 complete_subcmd_out="$("$HELM_BIN" __complete "" 2>/dev/null)" || true
-csc_count="$(printf '%s' "$complete_subcmd_out" | wc -l | tr -d ' ')"
-csc_first="$(printf '%s' "$complete_subcmd_out" | head -1)"
-log_captured "$HELM_BIN __complete ''" "${csc_count}L | ${csc_first}"
+subcmd_count="$(printf '%s' "$complete_subcmd_out" | grep -c '' | tr -d ' ')"
+subcmd_first="$(printf '%s' "$complete_subcmd_out" | head -1)"
+log_captured "$HELM_BIN __complete ''" "${subcmd_count}L | ${subcmd_first}"
 if printf '%s' "$complete_subcmd_out" | grep -qF "install" && \
    printf '%s' "$complete_subcmd_out" | grep -qF "template"; then
     pass "Completion candidates: subcommands"
@@ -99,9 +101,9 @@ else
 fi
 
 complete_flag_out="$("$HELM_BIN" __complete install -- 2>/dev/null)" || true
-cfl_count="$(printf '%s' "$complete_flag_out" | wc -l | tr -d ' ')"
-cfl_first="$(printf '%s' "$complete_flag_out" | head -1)"
-log_captured "$HELM_BIN __complete install --" "${cfl_count}L | ${cfl_first}"
+flags_count="$(printf '%s' "$complete_flag_out" | grep -c '' | tr -d ' ')"
+flags_first="$(printf '%s' "$complete_flag_out" | head -1)"
+log_captured "$HELM_BIN __complete install --" "${flags_count}L | ${flags_first}"
 if printf '%s' "$complete_flag_out" | grep -qF -- "--namespace"; then
     pass "Completion candidates: install flags"
 else

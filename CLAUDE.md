@@ -123,12 +123,12 @@ The sandbox the `code` agent runs in implementing a fix has **no network access*
 
 ### Opportunistic non-behavioral hardening
 
-When the `code` agent encounters fragile idioms in code adjacent to the lines it is already modifying — for example `echo "$x" | grep -q` patterns that break on backslash sequences, unquoted variables, or non-portable syntax — it may include non-behavioral robustness fixes in the same commit under these rules:
+When the `code` agent encounters fragile idioms in code in files it is already modifying — for example `echo "$x" | grep -q` patterns that break on backslash sequences, unquoted variables, or non-portable syntax — it may include non-behavioral robustness fixes in the same commit under these rules:
 
-1. **Strictly non-behavioral only.** The fix must not change observable output, exit codes, or control flow. Typical examples: `echo` → `printf '%s'`, `grep -q` → `grep -qF` where the pattern is a literal string, adding double-quotes around variable expansions, replacing a Bash-only construct with a POSIX-portable equivalent.
-2. **Explicitly disclosed.** The PR description must list every such change under a dedicated heading — **"Out-of-scope hardening"** — so reviewers can evaluate them separately from the in-scope work. Undisclosed out-of-scope modifications are still scope-creep regardless of whether they are non-behavioral.
-3. **Review agent accepts disclosed hardening.** The `review` agent should not raise `[scope-creep]` findings on changes that are already listed under the "Out-of-scope hardening" heading in the PR description. The disclosure is itself the required mitigation.
-4. **Silence is scope-creep.** If the `code` agent includes non-behavioral changes without documenting them under the heading above, the `review` agent should flag them as scope-creep. The convention protects disclosed changes, not undisclosed ones.
+- **Strictly non-behavioral only.** The fix must not change observable output, exit codes, or control flow. Typical examples: `echo` → `printf '%s\n'`, `grep -q` → `grep -qF` where the pattern is a literal string, adding double-quotes around variable expansions, replacing a Bash-only construct with a POSIX-portable equivalent.
+- **Explicitly disclosed.** The PR description must list every such change under a dedicated heading — **"Out-of-scope hardening"** — so reviewers can evaluate them separately from the in-scope work. Undisclosed out-of-scope modifications are still scope-creep regardless of whether they are non-behavioral.
+- **Review agent accepts disclosed hardening.** The `review` agent should not raise `[scope-creep]` findings on changes that are already listed under the "Out-of-scope hardening" heading in the PR description. The disclosure is itself the required mitigation.
+- **Silence is scope-creep.** If the `code` agent includes non-behavioral changes without documenting them under the heading above, the `review` agent should flag them as scope-creep. The convention protects disclosed changes, not undisclosed ones.
 
 ## Working conventions
 

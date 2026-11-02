@@ -207,6 +207,7 @@ GOEOF
             if [[ -n "${probe_pid:-}" ]]; then
                 kill "$probe_pid" 2>/dev/null || true
             fi
+            rm -rf "${probe_dir:-}"
         }
         trap '_chacha_cleanup; cleanup_helm_home' EXIT
 

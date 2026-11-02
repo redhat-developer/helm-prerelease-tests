@@ -15,8 +15,9 @@ description: |
     Enables FIPS on the guest, extracts the shipped binary from the
     helm-cli snapshot image, and runs every suite under
     scripts/binary/non-cluster/. The FIPS build stamp check validates
-    the certified module linkage; the ChaCha20 behavioral probe skips
-    on a FIPS host (non-FIPS behavior is not testable there).
+    the certified module linkage (Gate A); the ChaCha20 probe inverts
+    on a FIPS host and asserts helm REJECTS the non-FIPS cipher, which
+    is the only proof that FIPS actually activates (Gate B).
 
 environment:
     VERBOSE: "1"
@@ -52,6 +53,10 @@ prepare:
       - podman
       - tar
       - gzip
+      # golang builds the ChaCha20 probe server. On this plan's FIPS guest
+      # the probe asserts the inverse of the non-FIPS case: helm must
+      # REJECT ChaCha20, which is the Gate B check (HELM-846b).
+      - golang
 
   - name: extract-binaries
     how: shell

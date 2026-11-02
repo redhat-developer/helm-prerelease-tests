@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# FIPS verification: build stamp presence and non-FIPS host behavior.
+# FIPS verification: build stamps (Gate A) and cipher negotiation (Gate B).
 #
-# Build-stamp checks run on all platforms without a Go toolchain.
-# The non-FIPS behavior probe (ChaCha20 acceptance) needs Go and
-# skips where absent or where the host is FIPS-enabled.
+# Build-stamp checks run on all platforms and need no Go toolchain.
+#
+# The ChaCha20-Poly1305 probe needs Go and asserts in both directions:
+#   non-FIPS host -> helm must ACCEPT the non-FIPS cipher (not stuck on)
+#   FIPS host     -> helm must REJECT it (FIPS actually activates)
+# It skips only where no Go toolchain is present. Do not reintroduce a
+# skip-on-FIPS path: the FIPS arm is the only Gate B coverage there is.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../../common.sh"
@@ -55,11 +59,21 @@ else
 fi
 
 # ---------------------------------------------------------------------------
-# 4. Non-FIPS host behavior — ChaCha20-Poly1305 acceptance
+# 4. ChaCha20-Poly1305 negotiation — expectation depends on the host
 # ---------------------------------------------------------------------------
-# On a non-FIPS host, helm must accept a TLS connection offering only
-# ChaCha20-Poly1305 (a non-FIPS cipher). This confirms FIPS activation
-# is host-conditional (fips140=auto) rather than stuck on.
+# One probe, two assertions. A local TLS server offers ONLY ChaCha20-
+# Poly1305, a non-FIPS cipher, and we observe what helm puts on the wire:
+#
+#   non-FIPS host → helm must ACCEPT it. Proves FIPS activation is
+#                   host-conditional (fips140=auto) and not stuck on.
+#                   A rejection here would break non-FIPS customers.
+#   FIPS host     → helm must REJECT it. This is Gate B: proof that FIPS
+#                   actually activates, not merely that the certified
+#                   module is linked. Previously this arm was skipped.
+#
+# Both arms are real assertions; neither is informational. The handshake
+# outcome is the signal, so the only host input that matters is
+# /proc/sys/crypto/fips_enabled (absent on darwin/windows → non-FIPS).
 #
 # Constraints (from debugging history):
 #   - The server must pin MaxVersion to TLS 1.2. Measured: without the
@@ -73,20 +87,20 @@ fi
 #     will not offer ChaCha20.
 #
 # Needs a Go toolchain to build the probe server.
-# Skips on FIPS-enabled hosts — non-FIPS behavior is not testable there.
 
-chacha_skip=""
+host_fips=0
 if [[ -f /proc/sys/crypto/fips_enabled ]]; then
-    fips_val="$(cat /proc/sys/crypto/fips_enabled)"
-    if [[ "$fips_val" = "1" ]]; then
-        chacha_skip="host is FIPS-enabled — non-FIPS behavior not testable here"
-    fi
+    host_fips="$(cat /proc/sys/crypto/fips_enabled 2>/dev/null || echo 0)"
 fi
 
-if [[ -n "$chacha_skip" ]]; then
-    skip "Non-FIPS host ChaCha20 acceptance" "$chacha_skip"
-elif ! command -v go >/dev/null 2>&1; then
-    skip "Non-FIPS host ChaCha20 acceptance" "Go toolchain absent"
+if [[ "$host_fips" == "1" ]]; then
+    chacha_test="FIPS host ChaCha20 rejection"
+else
+    chacha_test="Non-FIPS host ChaCha20 acceptance"
+fi
+
+if ! command -v go >/dev/null 2>&1; then
+    skip "$chacha_test" "Go toolchain absent"
 else
     probe_dir="$(mktemp -d "${TMPDIR:-/tmp}/fips-probe.XXXXXX")"
 
@@ -168,11 +182,20 @@ func main() {
 GOEOF
 
     # Build the probe server; only stdlib is used so no module download.
+    #
+    # CGO_ENABLED=0 and -tags no_openssl are load-bearing, not hygiene.
+    # RHEL's golang package routes crypto through OpenSSL when cgo is on.
+    # On a FIPS host the OpenSSL FIPS provider does not offer ChaCha20, so
+    # a cgo-built probe server could not OFFER the cipher and the handshake
+    # would fail server-side -- the test would then "pass" on a helm binary
+    # with no FIPS support at all. Forcing the pure-Go stack keeps the FIPS
+    # constraint on the helm client, which is the thing under test. This
+    # matches the reference implementation in nonfips-verify.sh.
     build_err=""
-    build_err="$(cd "${probe_dir}" && go build -o probe . 2>&1)" || true
+    build_err="$(cd "${probe_dir}" && CGO_ENABLED=0 go build -tags no_openssl -o probe . 2>&1)" || true
 
     if [[ ! -x "${probe_dir}/probe" ]]; then
-        skip "Non-FIPS host ChaCha20 acceptance" "probe failed to compile: ${build_err}"
+        skip "$chacha_test" "probe failed to compile: ${build_err}"
         rm -rf "$probe_dir"
     else
         # Register a cleanup for the probe process before starting it, so
@@ -201,7 +224,7 @@ GOEOF
         done
 
         if [[ -z "$addr" ]]; then
-            skip "Non-FIPS host ChaCha20 acceptance" \
+            skip "$chacha_test" \
                 "probe server did not start: $(cat "${probe_dir}/srv.err" 2>/dev/null)"
             kill "$probe_pid" 2>/dev/null || true
             wait "$probe_pid" 2>/dev/null || true
@@ -223,19 +246,34 @@ GOEOF
             kill "$probe_pid" 2>/dev/null || true
             wait "$probe_pid" 2>/dev/null || true
 
-            # A TLS cipher/handshake error means FIPS blocked ChaCha20
-            # even though the host is non-FIPS — stuck on.
-            # A "not a valid chart repository" message confirms the TLS
-            # handshake succeeded and helm reached the HTTP layer.
-            # If neither signal appears the probe may have crashed or the
-            # exchange was inconclusive — skip rather than false-pass.
+            # Two observable outcomes, interpreted against the host state:
+            #
+            #   rejected  — a TLS cipher/handshake error. helm would not
+            #               speak ChaCha20. Correct on a FIPS host, a
+            #               defect on a non-FIPS one (FIPS stuck on).
+            #   accepted  — "not a valid chart repository" proves the
+            #               handshake completed and helm reached the HTTP
+            #               layer. Correct on a non-FIPS host, a Gate B
+            #               failure on a FIPS one (FIPS never activated).
+            #
+            # Neither signal means the probe crashed or the exchange was
+            # inconclusive — skip rather than guess in either direction.
             if echo "$helm_output" | grep -Eqi "no cipher suite|handshake failure|cipher.*error"; then
-                fail "Non-FIPS host ChaCha20 acceptance" \
-                    "ChaCha20 rejected on non-FIPS host — FIPS appears stuck on"
+                if [[ "$host_fips" == "1" ]]; then
+                    pass "$chacha_test"
+                else
+                    fail "$chacha_test" \
+                        "ChaCha20 rejected on non-FIPS host — FIPS appears stuck on"
+                fi
             elif echo "$helm_output" | grep -qi "not a valid chart repository"; then
-                pass "Non-FIPS host ChaCha20 acceptance"
+                if [[ "$host_fips" == "1" ]]; then
+                    fail "$chacha_test" \
+                        "ChaCha20 accepted on a FIPS host — FIPS did not activate"
+                else
+                    pass "$chacha_test"
+                fi
             else
-                skip "Non-FIPS host ChaCha20 acceptance" \
+                skip "$chacha_test" \
                     "no cipher failure and no successful-handshake marker observed — outcome inconclusive"
             fi
         fi

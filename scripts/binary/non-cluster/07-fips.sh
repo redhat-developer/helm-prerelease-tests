@@ -62,8 +62,13 @@ fi
 # is host-conditional (fips140=auto) rather than stuck on.
 #
 # Constraints (from debugging history):
-#   - The server must disable HTTP/2 (TLSNextProto). HTTP/2 requires
-#     AES-GCM and refuses to start on a ChaCha20-only config.
+#   - The server must pin MaxVersion to TLS 1.2. Measured: without the
+#     pin a FIPS-stuck binary negotiates TLS 1.3 + AES-GCM and the probe
+#     reports PASS. The pin is what makes this assertion falsifiable.
+#   - The server must not speak HTTP/2; h2 requires AES-GCM and will not
+#     work on a ChaCha20-only config. As written this is already
+#     guaranteed by tls.Listen + Serve (no ALPN); TLSNextProto is kept
+#     as a guard against a refactor to ListenAndServeTLS.
 #   - OpenSSL s_server is not a substitute — a FIPS host's provider
 #     will not offer ChaCha20.
 #
@@ -132,6 +137,9 @@ func main() {
 		}},
 		// Force TLS 1.2 so CipherSuites config takes effect (TLS 1.3
 		// does not allow restricting cipher suites via this field).
+		// Do not drop MaxVersion: measured, a FIPS-stuck binary completes
+		// a TLS 1.3 AES-GCM handshake against an unpinned server, and the
+		// probe then reports PASS for a binary it should fail.
 		CipherSuites: []uint16{tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256},
 		MinVersion:   tls.VersionTLS12,
 		MaxVersion:   tls.VersionTLS12,
@@ -144,8 +152,11 @@ func main() {
 	// Print the listener address so the calling script can connect.
 	fmt.Println(ln.Addr().String())
 	srv := &http.Server{
-		// Disable HTTP/2 — it requires AES-GCM and refuses to start
-		// on a ChaCha20-only config.
+		// Guard only. tls.Listen + Serve never configures HTTP/2 (that
+		// happens in ListenAndServeTLS/ServeTLS) and no ALPN protocols
+		// are advertised, so h2 cannot be negotiated here today. Kept
+		// because h2 requires AES-GCM and would break a ChaCha20-only
+		// config if someone switched to ListenAndServeTLS.
 		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler)),
 		Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusOK)

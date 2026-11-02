@@ -26,7 +26,7 @@ Seven platform targets matter for sign-off: `linux-amd64`, `linux-arm64`, `linux
 | `.tekton/helm-container-tests-pipeline.yaml` | Konflux container test pipeline. Inspects the `SNAPSHOT` image labels and entrypoint binary. |
 | `.fmf/version` | Marks this repo as an fmf metadata tree root. Testing Farm finds no plans without it. Contents: `1`. |
 | `plans/non-cluster.fmf`, `plans/cluster.fmf` | tmt plans run by Testing Farm. Envelopes only — they extract the binary from `IMAGE_URL` and invoke the same `scripts/` suites every other runner uses. See below. |
-| `plans/fips.fmf` | Testing Farm plan that enables FIPS on an x86_64 guest, verifies FIPS is active, and runs the full non-cluster suite including the build stamp checks. |
+| `plans/fips.fmf` | Testing Farm plan that enables FIPS on an x86_64 guest, verifies FIPS is active, and runs the full non-cluster suite — Gate A (build stamps) plus Gate B (helm must reject ChaCha20 on a FIPS host). |
 | `.fullsend/config.yaml`, `.github/workflows/fullsend.yaml`, `.github/workflows/prioritize.yml` | fullsend automation wiring — see below. |
 
 `linux-ppc64le` / `linux-s390x` have no automated coverage in this repo today — they're tested manually, outside CI. The `plans/` directory is the in-progress fix (HELM-849); it is inert until the matching IntegrationTestScenarios merge in `konflux-release-data`.

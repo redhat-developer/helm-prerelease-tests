@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# FIPS verification: build stamp presence and non-FIPS host behavior.
+# FIPS verification: build stamps (Gate A) and cipher negotiation (Gate B).
 #
-# Build-stamp checks run on all platforms without a Go toolchain.
-# The non-FIPS behavior probe (ChaCha20 acceptance) needs Go and
-# skips where absent or where the host is FIPS-enabled.
+# Build-stamp checks run on all platforms and need no Go toolchain.
+#
+# The ChaCha20-Poly1305 probe needs Go and asserts in both directions:
+#   non-FIPS host -> helm must ACCEPT the non-FIPS cipher (not stuck on)
+#   FIPS host     -> helm must REJECT it (FIPS actually activates)
+# It skips only where no Go toolchain is present. Do not reintroduce a
+# skip-on-FIPS path: the FIPS arm is the only Gate B coverage there is.
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${SCRIPT_DIR}/../../common.sh"
@@ -178,8 +182,17 @@ func main() {
 GOEOF
 
     # Build the probe server; only stdlib is used so no module download.
+    #
+    # CGO_ENABLED=0 and -tags no_openssl are load-bearing, not hygiene.
+    # RHEL's golang package routes crypto through OpenSSL when cgo is on.
+    # On a FIPS host the OpenSSL FIPS provider does not offer ChaCha20, so
+    # a cgo-built probe server could not OFFER the cipher and the handshake
+    # would fail server-side -- the test would then "pass" on a helm binary
+    # with no FIPS support at all. Forcing the pure-Go stack keeps the FIPS
+    # constraint on the helm client, which is the thing under test. This
+    # matches the reference implementation in nonfips-verify.sh.
     build_err=""
-    build_err="$(cd "${probe_dir}" && go build -o probe . 2>&1)" || true
+    build_err="$(cd "${probe_dir}" && CGO_ENABLED=0 go build -tags no_openssl -o probe . 2>&1)" || true
 
     if [[ ! -x "${probe_dir}/probe" ]]; then
         skip "$chacha_test" "probe failed to compile: ${build_err}"

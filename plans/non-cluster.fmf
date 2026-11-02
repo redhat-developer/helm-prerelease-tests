@@ -24,6 +24,10 @@ prepare:
       - podman
       - tar
       - gzip
+      # golang builds the ChaCha20 probe server in 07-fips.sh. Without it
+      # that check skips, and the behavioural half of FIPS verification
+      # never runs on Testing Farm — the suite that is meant to be primary.
+      - golang
 
   - name: extract-binaries
     how: shell

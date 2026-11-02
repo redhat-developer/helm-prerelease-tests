@@ -56,7 +56,7 @@ Two consequences worth remembering:
 | `04-functionality.sh` | create, lint, template, package, show, pull, repo ops, plugins |
 | `05-v4-features.sh` | v4-specific feature tests that don't need a cluster |
 | `06-distribution.sh` | Archive extraction: `.tar.gz`, `.zip` |
-| `07-fips.sh` | FIPS build stamp presence and non-FIPS host behavior (ChaCha20-Poly1305 acceptance) |
+| `07-fips.sh` | FIPS build stamps (Gate A) and ChaCha20-Poly1305 negotiation — accepted on a non-FIPS host, rejected on a FIPS one (Gate B) |
 
 **`scripts/binary/cluster/`** — require a live Kubernetes cluster (self-skip when absent):
 

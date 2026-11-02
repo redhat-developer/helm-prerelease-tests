@@ -50,7 +50,7 @@ Two consequences worth remembering:
 | Script | Category |
 |---|---|
 | `01-validation.sh` | Checksums, file type, arch match, permissions, size |
-| `02-smoke.sh` | Version string, help, env output |
+| `02-smoke.sh` | Version string, help, env output, shell completion generation & load |
 | `03-dependencies.sh` | Static linking verification (`ldd`/`otool`/Windows equivalent) |
 | `04-functionality.sh` | create, lint, template, package, show, pull, repo ops, plugins |
 | `05-v4-features.sh` | v4-specific feature tests that don't need a cluster |

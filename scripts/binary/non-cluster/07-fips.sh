@@ -175,6 +175,18 @@ GOEOF
         skip "Non-FIPS host ChaCha20 acceptance" "probe failed to compile: ${build_err}"
         rm -rf "$probe_dir"
     else
+        # Register a cleanup for the probe process before starting it, so
+        # the probe is killed if the script exits unexpectedly (e.g., a
+        # SIGTERM or uncaught error) between the launch and the explicit
+        # kill/wait calls below. Chains with common.sh's cleanup_helm_home.
+        probe_pid=""
+        _chacha_cleanup() {
+            if [[ -n "${probe_pid:-}" ]]; then
+                kill "$probe_pid" 2>/dev/null || true
+            fi
+        }
+        trap '_chacha_cleanup; cleanup_helm_home' EXIT
+
         # Start the server and wait for it to print its listener address.
         "${probe_dir}/probe" > "${probe_dir}/addr" 2>"${probe_dir}/srv.err" &
         probe_pid=$!
@@ -217,7 +229,7 @@ GOEOF
             # handshake succeeded and helm reached the HTTP layer.
             # If neither signal appears the probe may have crashed or the
             # exchange was inconclusive — skip rather than false-pass.
-            if echo "$helm_output" | grep -Eqi "cipher|handshake failure"; then
+            if echo "$helm_output" | grep -Eqi "no cipher suite|handshake failure|cipher.*error"; then
                 fail "Non-FIPS host ChaCha20 acceptance" \
                     "ChaCha20 rejected on non-FIPS host — FIPS appears stuck on"
             elif echo "$helm_output" | grep -qi "not a valid chart repository"; then

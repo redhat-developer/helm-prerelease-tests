@@ -104,6 +104,14 @@ if ! command -v go >/dev/null 2>&1; then
 else
     probe_dir="$(mktemp -d "${TMPDIR:-/tmp}/fips-probe.XXXXXX")"
 
+    # On Windows, go build appends .exe to the output binary even when
+    # -o specifies a bare name. Use the correct suffix so the existence
+    # check and execution reference match the actual file produced.
+    probe_bin="probe"
+    if [[ "$CURRENT_OS" == "windows" ]]; then
+        probe_bin="probe.exe"
+    fi
+
     cat > "${probe_dir}/go.mod" << 'MODEOF'
 module fips-probe
 
@@ -192,9 +200,9 @@ GOEOF
     # constraint on the helm client, which is the thing under test. This
     # matches the reference implementation in nonfips-verify.sh.
     build_err=""
-    build_err="$(cd "${probe_dir}" && CGO_ENABLED=0 go build -tags no_openssl -o probe . 2>&1)" || true
+    build_err="$(cd "${probe_dir}" && CGO_ENABLED=0 go build -tags no_openssl -o "${probe_bin}" . 2>&1)" || true
 
-    if [[ ! -x "${probe_dir}/probe" ]]; then
+    if [[ ! -x "${probe_dir}/${probe_bin}" ]]; then
         skip "$chacha_test" "probe failed to compile: ${build_err}"
         rm -rf "$probe_dir"
     else
@@ -211,7 +219,7 @@ GOEOF
         trap '_chacha_cleanup; cleanup_helm_home' EXIT
 
         # Start the server and wait for it to print its listener address.
-        "${probe_dir}/probe" > "${probe_dir}/addr" 2>"${probe_dir}/srv.err" &
+        "${probe_dir}/${probe_bin}" > "${probe_dir}/addr" 2>"${probe_dir}/srv.err" &
         probe_pid=$!
 
         addr=""

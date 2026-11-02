@@ -121,6 +121,15 @@ fullsend has no merge-automation feature at all. `ready-for-merge` is just a lab
 
 The sandbox the `code` agent runs in implementing a fix has **no network access** and doesn't run this repo's real multi-platform binary test matrix. It writes code, runs local tests/lint it has access to, then pushes — the actual verification of a fix happens in this repo's existing "Helm Binary Tests" CI workflow running on the resulting PR like any other PR. If that workflow fails, the `fix` agent reads its logs and iterates; a human should still glance at the real CI result before merging, not just the agent's own summary.
 
+### Opportunistic non-behavioral hardening
+
+When the `code` agent encounters fragile idioms in code in files it is already modifying — for example `echo "$x" | grep -q` patterns that break on backslash sequences, unquoted variables, or non-portable syntax — it may include non-behavioral robustness fixes in the same commit under these rules:
+
+- **Strictly non-behavioral only.** The fix must not change observable output, exit codes, or control flow. Typical examples: `echo` → `printf '%s\n'`, `grep -q` → `grep -qF` where the pattern is a literal string, adding double-quotes around variable expansions, replacing a Bash-only construct with a POSIX-portable equivalent.
+- **Explicitly disclosed.** The PR description must list every such change under a dedicated heading — **"Out-of-scope hardening"** — so reviewers can evaluate them separately from the in-scope work. Undisclosed out-of-scope modifications are still scope-creep regardless of whether they are non-behavioral.
+- **Review agent accepts disclosed hardening.** The `review` agent should not raise `[scope-creep]` findings on changes that are already listed under the "Out-of-scope hardening" heading in the PR description. The disclosure is itself the required mitigation.
+- **Silence is scope-creep.** If the `code` agent includes non-behavioral changes without documenting them under the heading above, the `review` agent should flag them as scope-creep. The convention protects disclosed changes, not undisclosed ones.
+
 ## Working conventions
 
 - Test scripts must stay portable across bash on Linux/macOS and Git Bash on Windows (see the `CURRENT_OS`/`CHECKSUM_CMD`/`DEP_CHECK_CMD` branching in `common.sh`) — don't add Linux-only syntax to a script that also runs on Windows/macOS in CI.

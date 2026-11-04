@@ -85,9 +85,39 @@ skip() {
     SKIP_COUNT=$((SKIP_COUNT + 1))
 }
 
+# ---------------------------------------------------------------------------
+# A skip that is only legitimate in some environments.
+#
+# A plain skip() does not touch FAIL_COUNT, so a suite whose checks all
+# skip still exits 0 and reports green. That is correct where skipping is
+# meaningful (no Go toolchain on the macOS runners) and actively wrong
+# where it is not: on a FIPS-enabled guest, a skipped FIPS assertion means
+# the one thing the guest exists to prove was never proven, and the green
+# tick certifies nothing.
+#
+# Pass mandatory=1 to turn a skip into a failure. Where a check is
+# mandatory, a passing suite is itself evidence that the check ran -- no
+# log archaeology required, which matters because CI prunes logs long
+# before anyone goes looking.
+#
+# Usage: skip_or_fail <mandatory 0|1> <name> <reason>
+# ---------------------------------------------------------------------------
+skip_or_fail() {
+    local mandatory="$1" name="$2" reason="${3:-}"
+    if [[ "$mandatory" == "1" ]]; then
+        fail "$name" "required in this environment but did not run: ${reason}"
+    else
+        skip "$name" "$reason"
+    fi
+}
+
+# Whole-suite skip (e.g. no cluster available). Counts as one reported
+# result so the zero-result guard in summary() does not mistake a
+# legitimate suite-wide skip for a suite that never ran.
 skip_all() {
     local reason="$1"
     echo "SKIP ALL: ${reason}"
+    SKIP_COUNT=$((SKIP_COUNT + 1))
 }
 
 summary() {
@@ -102,6 +132,13 @@ summary() {
         done
     fi
     echo "==========================================="
+    # A suite that reported nothing has not passed -- it has not run.
+    # Guards against a script exiting early or every check vanishing,
+    # both of which otherwise look identical to success.
+    if [[ $total -eq 0 ]]; then
+        echo "ERROR: no checks reported a result -- treating as failure"
+        return 1
+    fi
     [[ $FAIL_COUNT -eq 0 ]]
 }
 

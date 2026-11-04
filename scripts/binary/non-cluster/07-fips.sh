@@ -93,14 +93,21 @@ if [[ -f /proc/sys/crypto/fips_enabled ]]; then
     host_fips="$(cat /proc/sys/crypto/fips_enabled 2>/dev/null || echo 0)"
 fi
 
+# On a FIPS guest this check is the entire reason the guest was
+# provisioned, and plans/fips.fmf installs golang for it, so every skip
+# path below becomes a failure: a green run then proves it actually ran.
+# Elsewhere a skip stays a skip -- the macOS runners have no Go, and the
+# Konflux amd64 image has none either, and neither is a defect.
+chacha_required=0
 if [[ "$host_fips" == "1" ]]; then
+    chacha_required=1
     chacha_test="FIPS host ChaCha20 rejection"
 else
     chacha_test="Non-FIPS host ChaCha20 acceptance"
 fi
 
 if ! command -v go >/dev/null 2>&1; then
-    skip "$chacha_test" "Go toolchain absent"
+    skip_or_fail "$chacha_required" "$chacha_test" "Go toolchain absent"
 else
     probe_dir="$(mktemp -d "${TMPDIR:-/tmp}/fips-probe.XXXXXX")"
 
@@ -195,7 +202,7 @@ GOEOF
     build_err="$(cd "${probe_dir}" && CGO_ENABLED=0 go build -tags no_openssl -o probe . 2>&1)" || true
 
     if [[ ! -x "${probe_dir}/probe" ]]; then
-        skip "$chacha_test" "probe failed to compile: ${build_err}"
+        skip_or_fail "$chacha_required" "$chacha_test" "probe failed to compile: ${build_err}"
         rm -rf "$probe_dir"
     else
         # Register a cleanup for the probe process before starting it, so
@@ -224,7 +231,7 @@ GOEOF
         done
 
         if [[ -z "$addr" ]]; then
-            skip "$chacha_test" \
+            skip_or_fail "$chacha_required" "$chacha_test" \
                 "probe server did not start: $(cat "${probe_dir}/srv.err" 2>/dev/null)"
             kill "$probe_pid" 2>/dev/null || true
             wait "$probe_pid" 2>/dev/null || true
@@ -273,7 +280,7 @@ GOEOF
                     pass "$chacha_test"
                 fi
             else
-                skip "$chacha_test" \
+                skip_or_fail "$chacha_required" "$chacha_test" \
                     "no cipher failure and no successful-handshake marker observed — outcome inconclusive"
             fi
         fi
